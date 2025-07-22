@@ -118,6 +118,9 @@ class Professor(models.Model):
     
     Attributes:
         nome_completo: Nome completo do professor
+        email: Email do professor
+        telefone: Telefone do professor
+        especialidade: Área de especialidade do professor
         disciplinas: Disciplinas que o professor pode lecionar
         ativo: Se o professor está ativo no sistema
         criado_em: Data de criação do registro
@@ -127,6 +130,24 @@ class Professor(models.Model):
         max_length=150,
         verbose_name="Nome Completo",
         help_text="Nome completo do professor"
+    )
+    email = models.EmailField(
+        max_length=100,
+        verbose_name="E-mail",
+        help_text="Endereço de e-mail do professor",
+        blank=True
+    )
+    telefone = models.CharField(
+        max_length=20,
+        verbose_name="Telefone",
+        help_text="Telefone de contato do professor",
+        blank=True
+    )
+    especialidade = models.CharField(
+        max_length=100,
+        verbose_name="Especialidade",
+        help_text="Área de especialidade ou formação principal",
+        blank=True
     )
     disciplinas = models.ManyToManyField(
         Disciplina,
@@ -240,29 +261,33 @@ class PreferenciaProfessor(models.Model):
         verbose_name="Professor",
         related_name="preferencias"
     )
+    disciplina = models.ForeignKey(
+        Disciplina,
+        on_delete=models.CASCADE,
+        verbose_name="Disciplina",
+        related_name="preferencias_professores",
+        null=True,
+        blank=True,
+        help_text="Disciplina específica (deixe vazio para qualquer disciplina)"
+    )
     dia_semana = models.IntegerField(
         choices=DIAS_SEMANA,
-        verbose_name="Dia da Semana"
+        verbose_name="Dia da Semana",
+        null=True,
+        blank=True,
+        help_text="Dia da semana específico (deixe vazio para qualquer dia)"
     )
     turno = models.CharField(
         max_length=10,
         choices=TURNOS,
-        verbose_name="Turno"
-    )
-    disponivel = models.BooleanField(
-        default=True,
-        verbose_name="Disponível",
-        help_text="Se o professor está disponível neste horário"
-    )
-    preferencial = models.BooleanField(
-        default=False,
-        verbose_name="Preferencial",
-        help_text="Se é um horário preferencial para o professor"
+        verbose_name="Turno",
+        blank=True,
+        help_text="Turno específico (deixe vazio para qualquer turno)"
     )
     observacoes = models.TextField(
         blank=True,
         verbose_name="Observações",
-        help_text="Observações adicionais sobre este horário"
+        help_text="Observações adicionais sobre esta preferência"
     )
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
@@ -270,14 +295,18 @@ class PreferenciaProfessor(models.Model):
     class Meta:
         verbose_name = "Preferência do Professor"
         verbose_name_plural = "Preferências dos Professores"
-        unique_together = ['professor', 'dia_semana', 'turno']
-        ordering = ['professor', 'dia_semana', 'turno']
+        ordering = ['professor__nome_completo', 'dia_semana', 'turno']
 
     def __str__(self):
         """Representação string do modelo."""
-        disponibilidade = "Disponível" if self.disponivel else "Indisponível"
-        preferencia = " (Preferencial)" if self.preferencial else ""
-        return f"{self.professor} - {self.get_dia_semana_display()} {self.get_turno_display()}: {disponibilidade}{preferencia}"
+        partes = [str(self.professor)]
+        if self.disciplina:
+            partes.append(f"- {self.disciplina.nome}")
+        if self.dia_semana is not None:
+            partes.append(f"- {self.get_dia_semana_display()}")
+        if self.turno:
+            partes.append(f"- {self.get_turno_display()}")
+        return " ".join(partes)
 
 
 class Horario(models.Model):

@@ -264,18 +264,20 @@ class PreferenciaProfessorForm(forms.ModelForm):
     """
     Formulário para configuração de preferências do professor.
     
-    Permite definir restrições e preferências de horário
+    Permite definir preferências de disciplina, dia e turno
     que serão consideradas na geração automática.
     """
     
     class Meta:
         model = PreferenciaProfessor
         fields = [
-            'professor', 'dia_semana', 'turno', 'disponivel',
-            'preferencial', 'observacoes'
+            'professor', 'disciplina', 'dia_semana', 'turno', 'observacoes'
         ]
         widgets = {
             'professor': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'disciplina': forms.Select(attrs={
                 'class': 'form-select'
             }),
             'dia_semana': forms.Select(attrs={
@@ -283,12 +285,6 @@ class PreferenciaProfessorForm(forms.ModelForm):
             }),
             'turno': forms.Select(attrs={
                 'class': 'form-select'
-            }),
-            'disponivel': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
-            }),
-            'preferencial': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
             }),
             'observacoes': forms.Textarea(attrs={
                 'class': 'form-control',
@@ -298,19 +294,19 @@ class PreferenciaProfessorForm(forms.ModelForm):
         }
         help_texts = {
             'professor': 'Professor para configurar preferências',
-            'dia_semana': 'Dia da semana para a preferência',
-            'turno': 'Turno do dia para a preferência',
-            'disponivel': 'Marque se o professor está disponível neste horário',
-            'preferencial': 'Marque se este é um horário preferencial',
+            'disciplina': 'Disciplina específica (opcional)',
+            'dia_semana': 'Dia da semana específico (opcional)',
+            'turno': 'Turno específico (opcional)',
             'observacoes': 'Observações adicionais sobre as preferências'
         }
 
     def __init__(self, *args, **kwargs):
         """
-        Inicializa o formulário com professores ativos.
+        Inicializa o formulário com dados filtrados.
         """
         super().__init__(*args, **kwargs)
         self.fields['professor'].queryset = Professor.objects.filter(ativo=True)
+        self.fields['disciplina'].queryset = Disciplina.objects.filter(ativa=True)
 
 
 class HorarioForm(forms.ModelForm):

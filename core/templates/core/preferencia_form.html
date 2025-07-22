@@ -1,0 +1,241 @@
+{% extends 'core/base.html' %}
+
+{% block title %}
+    {% if object %}Editar Preferência{% else %}Nova Preferência{% endif %} - Sistema de Horários Escolares
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Início</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'core:preferencia_list' %}">Preferências</a></li>
+        <li class="breadcrumb-item active">
+            {% if object %}Editar Preferência{% else %}Nova Preferência{% endif %}
+        </li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Header -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="bi bi-heart me-2"></i>
+            {% if object %}Editar Preferência{% else %}Nova Preferência{% endif %}
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{% url 'core:preferencia_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-form me-2"></i>
+                        Configuração de Preferência
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Dica:</strong> Configure as preferências para que o algoritmo de geração automática 
+                        possa criar horários mais adequados para cada professor.
+                    </div>
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.professor.id_for_label }}" class="form-label">
+                                        {{ form.professor.label }}
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.professor }}
+                                    {% if form.professor.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.professor.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                    {% if form.professor.help_text %}
+                                        <div class="form-text">{{ form.professor.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.disciplina.id_for_label }}" class="form-label">
+                                        {{ form.disciplina.label }}
+                                    </label>
+                                    {{ form.disciplina }}
+                                    {% if form.disciplina.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.disciplina.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                    {% if form.disciplina.help_text %}
+                                        <div class="form-text">{{ form.disciplina.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.dia_semana.id_for_label }}" class="form-label">
+                                        {{ form.dia_semana.label }}
+                                    </label>
+                                    {{ form.dia_semana }}
+                                    {% if form.dia_semana.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.dia_semana.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                    {% if form.dia_semana.help_text %}
+                                        <div class="form-text">{{ form.dia_semana.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.turno.id_for_label }}" class="form-label">
+                                        {{ form.turno.label }}
+                                    </label>
+                                    {{ form.turno }}
+                                    {% if form.turno.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.turno.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                    {% if form.turno.help_text %}
+                                        <div class="form-text">{{ form.turno.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.observacoes.id_for_label }}" class="form-label">
+                                {{ form.observacoes.label }}
+                            </label>
+                            {{ form.observacoes }}
+                            {% if form.observacoes.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.observacoes.errors.0 }}
+                                </div>
+                            {% endif %}
+                            {% if form.observacoes.help_text %}
+                                <div class="form-text">{{ form.observacoes.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <hr>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'core:preferencia_list' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-lg me-2"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-2"></i>
+                                {% if object %}Atualizar Preferência{% else %}Criar Preferência{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Card explicativo -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-question-circle me-2"></i>
+                        Como Configurar
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Campos Obrigatórios:</h6>
+                            <ul>
+                                <li><strong>Professor:</strong> Selecione o professor</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Campos Opcionais:</h6>
+                            <ul>
+                                <li><strong>Disciplina:</strong> Disciplina preferida (deixe vazio para qualquer)</li>
+                                <li><strong>Dia da Semana:</strong> Dia preferido (deixe vazio para qualquer)</li>
+                                <li><strong>Turno:</strong> Turno preferido (deixe vazio para qualquer)</li>
+                                <li><strong>Observações:</strong> Informações adicionais</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning mt-3">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Importante:</strong> Múltiplas preferências podem ser criadas para o mesmo professor 
+                        para cobrir diferentes combinações de disciplina, dia e turno.
+                    </div>
+                </div>
+            </div>
+
+            {% if object %}
+            <!-- Card de informações adicionais -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Informações Adicionais
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Criado em:</strong> {{ object.criado_em|date:"d/m/Y H:i" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Atualizado em:</strong> {{ object.atualizado_em|date:"d/m/Y H:i" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Aplicar classes Bootstrap aos campos de formulário
+    const formControls = document.querySelectorAll('input[type="text"], select, textarea');
+    formControls.forEach(function(control) {
+        if (!control.classList.contains('form-control') && !control.classList.contains('form-select')) {
+            if (control.tagName === 'SELECT') {
+                control.classList.add('form-select');
+            } else {
+                control.classList.add('form-control');
+            }
+        }
+    });
+
+    // Adicionar opção "Não especificado" para campos opcionais
+    const optionalSelects = document.querySelectorAll('#id_disciplina, #id_dia_semana, #id_turno');
+    optionalSelects.forEach(function(select) {
+        if (!select.querySelector('option[value=""]')) {
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'Não especificado';
+            select.insertBefore(defaultOption, select.firstChild);
+        }
+    });
+});
+</script>
+{% endblock %}

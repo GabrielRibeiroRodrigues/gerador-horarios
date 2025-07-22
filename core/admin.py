@@ -26,9 +26,9 @@ class SalaAdmin(admin.ModelAdmin):
 @admin.register(Professor)
 class ProfessorAdmin(admin.ModelAdmin):
     """Configuração do admin para o modelo Professor."""
-    list_display = ['nome_completo', 'ativo']
-    list_filter = ['ativo', 'disciplinas']
-    search_fields = ['nome_completo']
+    list_display = ['nome_completo', 'especialidade', 'email', 'ativo']
+    list_filter = ['ativo', 'especialidade', 'disciplinas']
+    search_fields = ['nome_completo', 'email', 'especialidade']
     list_editable = ['ativo']
     filter_horizontal = ['disciplinas']
 
@@ -46,10 +46,10 @@ class TurmaAdmin(admin.ModelAdmin):
 @admin.register(PreferenciaProfessor)
 class PreferenciaProfessorAdmin(admin.ModelAdmin):
     """Configuração do admin para o modelo PreferenciaProfessor."""
-    list_display = ['professor', 'dia_semana', 'turno', 'disponivel', 'preferencial']
-    list_filter = ['dia_semana', 'turno', 'disponivel', 'preferencial']
-    search_fields = ['professor__nome_completo']
-    list_editable = ['disponivel', 'preferencial']
+    list_display = ['professor', 'disciplina', 'dia_semana', 'turno']
+    list_filter = ['dia_semana', 'turno', 'disciplina']
+    search_fields = ['professor__nome_completo', 'disciplina__nome']
+    raw_id_fields = ['professor', 'disciplina']
 
 
 @admin.register(Horario)

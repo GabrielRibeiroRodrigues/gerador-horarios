@@ -31,11 +31,6 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div class="alert alert-info" role="alert">
-                        <i class="bi bi-info-circle me-2"></i>
-                        <strong>Em desenvolvimento:</strong> O algoritmo de geração automática de horários será implementado em breve.
-                    </div>
-                    
                     <form method="post" id="gerarHorariosForm">
                         {% csrf_token %}
                         
@@ -187,14 +182,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnGerar = document.getElementById('btnGerar');
     
     form.addEventListener('submit', function(e) {
-        e.preventDefault();
+        // Mostrar loading durante o processamento
         showLoading(btnGerar);
         
-        // Simular processo de geração
-        setTimeout(function() {
-            hideLoading(btnGerar);
-            alert('Funcionalidade em desenvolvimento! O algoritmo de geração será implementado em breve.');
-        }, 2000);
+        // Permitir que o formulário seja enviado normalmente
+        // O loading será escondido quando a página recarregar
     });
 });
 </script>

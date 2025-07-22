@@ -310,11 +310,17 @@ class PreferenciaProfessorListView(ListView):
     
     def get_queryset(self):
         """Filtra preferências por professor."""
-        queryset = PreferenciaProfessor.objects.all().select_related('professor')
+        queryset = PreferenciaProfessor.objects.all().select_related('professor', 'disciplina')
         professor_id = self.request.GET.get('professor')
         if professor_id:
             queryset = queryset.filter(professor_id=professor_id)
         return queryset.order_by('professor__nome_completo', 'dia_semana', 'turno')
+    
+    def get_context_data(self, **kwargs):
+        """Adiciona professores ao contexto."""
+        context = super().get_context_data(**kwargs)
+        context['professores'] = Professor.objects.filter(ativo=True).order_by('nome_completo')
+        return context
 
 
 class PreferenciaProfessorCreateView(CreateView):

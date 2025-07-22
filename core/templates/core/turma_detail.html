@@ -1,0 +1,236 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ object.nome_codigo }} - Detalhes da Turma{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Início</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'core:turma_list' %}">Turmas</a></li>
+        <li class="breadcrumb-item active">{{ object.nome_codigo }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Header -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="bi bi-people me-2"></i>
+            {{ object.nome_codigo }}
+            {% if object.ativa %}
+                <span class="badge bg-success ms-2">Ativa</span>
+            {% else %}
+                <span class="badge bg-danger ms-2">Inativa</span>
+            {% endif %}
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="{% url 'core:turma_update' object.pk %}" class="btn btn-primary">
+                    <i class="bi bi-pencil me-2"></i>Editar
+                </a>
+                <a href="{% url 'core:turma_delete' object.pk %}" class="btn btn-outline-danger"
+                   onclick="return confirm('Tem certeza que deseja excluir esta turma?')">
+                    <i class="bi bi-trash me-2"></i>Excluir
+                </a>
+            </div>
+            <a href="{% url 'core:turma_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Informações da Turma -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Informações da Turma
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Nome/Código:</h6>
+                            <p class="text-muted">{{ object.nome_codigo }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Série/Período:</h6>
+                            <p class="text-muted">{{ object.serie_periodo }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Número de Alunos:</h6>
+                            <p class="text-muted">
+                                <span class="badge bg-info">{{ object.numero_alunos }} alunos</span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Status:</h6>
+                            <p class="text-muted">
+                                {% if object.ativa %}
+                                    <span class="badge bg-success">Ativa</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inativa</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Disciplinas da Turma -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-book me-2"></i>
+                        Disciplinas ({{ object.disciplinas.count }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if object.disciplinas.exists %}
+                        <div class="row">
+                            {% for disciplina in object.disciplinas.all %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card">
+                                    <div class="card-body p-3">
+                                        <h6 class="card-title">{{ disciplina.nome }}</h6>
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                {{ disciplina.curso_area }} - {{ disciplina.periodo_serie }}
+                                            </small>
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="badge bg-primary">{{ disciplina.carga_horaria_semanal }}h/semana</span>
+                                            {% if disciplina.ativa %}
+                                                <span class="badge bg-success">Ativa</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Inativa</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-book display-4 text-muted"></i>
+                            <h5 class="mt-3">Nenhuma disciplina associada</h5>
+                            <p class="text-muted">Esta turma ainda não possui disciplinas associadas.</p>
+                            <a href="{% url 'core:turma_update' object.pk %}" class="btn btn-primary">
+                                <i class="bi bi-plus-lg me-2"></i>Associar Disciplinas
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Horários da Turma -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-calendar3 me-2"></i>
+                        Horários da Turma
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if object.horarios.exists %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Dia</th>
+                                        <th>Turno</th>
+                                        <th>Horário</th>
+                                        <th>Disciplina</th>
+                                        <th>Professor</th>
+                                        <th>Sala</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for horario in object.horarios.all %}
+                                    <tr>
+                                        <td>{{ horario.get_dia_semana_display }}</td>
+                                        <td>{{ horario.get_turno_display }}</td>
+                                        <td>{{ horario.horario_inicio }} - {{ horario.horario_fim }}</td>
+                                        <td>{{ horario.disciplina.nome }}</td>
+                                        <td>{{ horario.professor.nome }}</td>
+                                        <td>{{ horario.sala.nome }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-calendar3 display-4 text-muted"></i>
+                            <h5 class="mt-3">Nenhum horário definido</h5>
+                            <p class="text-muted">Esta turma ainda não possui horários definidos.</p>
+                            <a href="{% url 'core:gerar_horarios' %}" class="btn btn-primary">
+                                <i class="bi bi-magic me-2"></i>Gerar Horários
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Estatísticas -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-bar-chart me-2"></i>
+                        Estatísticas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6>Disciplinas:</h6>
+                        <p class="h4 text-primary">{{ object.disciplinas.count }}</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>Carga Horária Total:</h6>
+                        {% with total_carga=0 %}
+                            {% for disciplina in object.disciplinas.all %}
+                                {% with total_carga=total_carga|add:disciplina.carga_horaria_semanal %}
+                                {% endwith %}
+                            {% endfor %}
+                            <p class="h4 text-primary">{{ total_carga }}h/semana</p>
+                        {% endwith %}
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>Horários Definidos:</h6>
+                        <p class="h4 text-info">{{ object.horarios.count }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informações do Sistema -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-gear me-2"></i>
+                        Sistema
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <small class="text-muted d-block mb-1">
+                        <strong>Criado em:</strong> {{ object.criado_em|date:"d/m/Y H:i" }}
+                    </small>
+                    <small class="text-muted d-block">
+                        <strong>Última atualização:</strong> {{ object.atualizado_em|date:"d/m/Y H:i" }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

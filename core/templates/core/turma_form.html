@@ -1,0 +1,203 @@
+{% extends 'core/base.html' %}
+
+{% block title %}
+    {% if object %}Editar Turma{% else %}Nova Turma{% endif %} - Sistema de Horários Escolares
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Início</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'core:turma_list' %}">Turmas</a></li>
+        <li class="breadcrumb-item active">
+            {% if object %}Editar Turma{% else %}Nova Turma{% endif %}
+        </li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Header -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="bi bi-people me-2"></i>
+            {% if object %}Editar Turma{% else %}Nova Turma{% endif %}
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{% url 'core:turma_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-form me-2"></i>
+                        Informações da Turma
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.nome_codigo.id_for_label }}" class="form-label">
+                                        {{ form.nome_codigo.label }}
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.nome_codigo }}
+                                    {% if form.nome_codigo.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.nome_codigo.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                    {% if form.nome_codigo.help_text %}
+                                        <div class="form-text">{{ form.nome_codigo.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.serie_periodo.id_for_label }}" class="form-label">
+                                        {{ form.serie_periodo.label }}
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.serie_periodo }}
+                                    {% if form.serie_periodo.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.serie_periodo.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                    {% if form.serie_periodo.help_text %}
+                                        <div class="form-text">{{ form.serie_periodo.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.numero_alunos.id_for_label }}" class="form-label">
+                                        {{ form.numero_alunos.label }}
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.numero_alunos }}
+                                    {% if form.numero_alunos.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.numero_alunos.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                    {% if form.numero_alunos.help_text %}
+                                        <div class="form-text">{{ form.numero_alunos.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check mt-4">
+                                        {{ form.ativa }}
+                                        <label class="form-check-label" for="{{ form.ativa.id_for_label }}">
+                                            {{ form.ativa.label }}
+                                        </label>
+                                    </div>
+                                    {% if form.ativa.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.ativa.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                    {% if form.ativa.help_text %}
+                                        <div class="form-text">{{ form.ativa.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.disciplinas.id_for_label }}" class="form-label">
+                                {{ form.disciplinas.label }}
+                            </label>
+                            {{ form.disciplinas }}
+                            {% if form.disciplinas.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.disciplinas.errors.0 }}
+                                </div>
+                            {% endif %}
+                            {% if form.disciplinas.help_text %}
+                                <div class="form-text">{{ form.disciplinas.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <hr>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'core:turma_list' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-lg me-2"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-2"></i>
+                                {% if object %}Atualizar Turma{% else %}Criar Turma{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {% if object %}
+            <!-- Card de informações adicionais -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Informações Adicionais
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Criado em:</strong> {{ object.criado_em|date:"d/m/Y H:i" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Atualizado em:</strong> {{ object.atualizado_em|date:"d/m/Y H:i" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Aplicar classes Bootstrap aos campos de formulário
+    const formControls = document.querySelectorAll('input[type="text"], input[type="number"], select, textarea');
+    formControls.forEach(function(control) {
+        if (!control.classList.contains('form-control') && !control.classList.contains('form-check-input')) {
+            control.classList.add('form-control');
+        }
+    });
+
+    // Tratar múltiplas seleções
+    const selectMultiple = document.querySelectorAll('select[multiple]');
+    selectMultiple.forEach(function(select) {
+        select.size = Math.min(select.options.length, 8);
+        select.style.height = 'auto';
+    });
+
+    // Tratar checkboxes
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(function(checkbox) {
+        checkbox.classList.add('form-check-input');
+    });
+});
+</script>
+{% endblock %}
