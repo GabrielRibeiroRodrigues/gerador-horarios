@@ -1,0 +1,168 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Disciplinas - Sistema de Horários Escolares{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Início</a></li>
+        <li class="breadcrumb-item active">Disciplinas</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Header -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="bi bi-book me-2"></i>
+            Disciplinas
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="{% url 'core:disciplina_create' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Nova Disciplina
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <form method="get" class="d-flex">
+                <input type="text" name="search" class="form-control me-2" 
+                       placeholder="Buscar disciplinas..." 
+                       value="{{ request.GET.search }}">
+                <button type="submit" class="btn btn-outline-secondary">
+                    <i class="bi bi-search"></i>
+                </button>
+                {% if request.GET.search %}
+                    <a href="{% url 'core:disciplina_list' %}" class="btn btn-outline-secondary ms-2">
+                        <i class="bi bi-x"></i>
+                    </a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Disciplinas Table -->
+    <div class="card">
+        <div class="card-body">
+            {% if disciplinas %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Curso/Área</th>
+                                <th>Período/Série</th>
+                                <th>Carga Horária</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for disciplina in disciplinas %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ disciplina.nome }}</strong>
+                                    </td>
+                                    <td>{{ disciplina.curso_area }}</td>
+                                    <td>{{ disciplina.periodo_serie }}</td>
+                                    <td>
+                                        <span class="badge bg-info">
+                                            {{ disciplina.carga_horaria_semanal }}h/semana
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if disciplina.ativa %}
+                                            <span class="badge bg-success badge-status">Ativa</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary badge-status">Inativa</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'core:disciplina_detail' disciplina.pk %}" 
+                                               class="btn btn-outline-info" title="Ver detalhes">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{% url 'core:disciplina_update' disciplina.pk %}" 
+                                               class="btn btn-outline-warning" title="Editar">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="{% url 'core:disciplina_delete' disciplina.pk %}" 
+                                               class="btn btn-outline-danger btn-delete" title="Excluir">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if is_paginated %}
+                    <nav aria-label="Paginação">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                        <i class="bi bi-chevron-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                        <i class="bi bi-chevron-double-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-book display-1 text-muted"></i>
+                    <h4 class="mt-3">Nenhuma disciplina encontrada</h4>
+                    <p class="text-muted">
+                        {% if request.GET.search %}
+                            Não foram encontradas disciplinas com o termo "{{ request.GET.search }}".
+                        {% else %}
+                            Comece cadastrando sua primeira disciplina.
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'core:disciplina_create' %}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        Nova Disciplina
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

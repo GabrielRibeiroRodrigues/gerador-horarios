@@ -1,0 +1,164 @@
+{% extends 'core/base.html' %}
+
+{% block title %}
+    {% if object %}Editar Professor{% else %}Novo Professor{% endif %} - Sistema de Horários Escolares
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Início</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'core:professor_list' %}">Professores</a></li>
+        <li class="breadcrumb-item active">
+            {% if object %}Editar{% else %}Novo{% endif %}
+        </li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Header -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="bi bi-person-badge me-2"></i>
+            {% if object %}Editar Professor{% else %}Novo Professor{% endif %}
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="{% url 'core:professor_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>
+                    Voltar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-{% if object %}pencil{% else %}plus-circle{% endif %} me-2"></i>
+                        Dados do Professor
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.nome_completo.id_for_label }}" class="form-label">
+                                <i class="bi bi-person me-1"></i>
+                                Nome Completo *
+                            </label>
+                            <input type="text" 
+                                   class="form-control {% if form.nome_completo.errors %}is-invalid{% endif %}" 
+                                   id="{{ form.nome_completo.id_for_label }}" 
+                                   name="{{ form.nome_completo.name }}" 
+                                   value="{{ form.nome_completo.value|default:'' }}"
+                                   placeholder="Nome completo do professor"
+                                   required>
+                            {% if form.nome_completo.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.nome_completo.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">{{ form.nome_completo.help_text }}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.disciplinas.id_for_label }}" class="form-label">
+                                <i class="bi bi-book me-1"></i>
+                                Disciplinas que Leciona
+                            </label>
+                            <select class="form-select" 
+                                    id="{{ form.disciplinas.id_for_label }}" 
+                                    name="{{ form.disciplinas.name }}" 
+                                    multiple size="5">
+                                {% for disciplina in form.disciplinas.field.queryset %}
+                                    <option value="{{ disciplina.pk }}" 
+                                            {% if disciplina in form.disciplinas.value %}selected{% endif %}>
+                                        {{ disciplina.nome }} ({{ disciplina.periodo_serie }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Segure Ctrl para selecionar múltiplas disciplinas</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="{{ form.ativo.id_for_label }}" 
+                                       name="{{ form.ativo.name }}"
+                                       {% if form.ativo.value %}checked{% endif %}>
+                                <label class="form-check-label" for="{{ form.ativo.id_for_label }}">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    Professor Ativo
+                                </label>
+                                <div class="form-text">{{ form.ativo.help_text }}</div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'core:professor_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-1"></i>
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <span class="loading-spinner spinner-border spinner-border-sm me-2" role="status"></span>
+                                <span class="btn-text">
+                                    <i class="bi bi-{% if object %}check-circle{% else %}plus-circle{% endif %} me-1"></i>
+                                    {% if object %}Salvar Alterações{% else %}Criar Professor{% endif %}
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Próximos Passos
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ol class="list-unstyled">
+                        <li class="mb-2">
+                            <span class="badge bg-primary rounded-circle me-2">1</span>
+                            <small>Cadastre o professor</small>
+                        </li>
+                        <li class="mb-2">
+                            <span class="badge bg-primary rounded-circle me-2">2</span>
+                            <small>Configure suas preferências de horário</small>
+                        </li>
+                        <li>
+                            <span class="badge bg-primary rounded-circle me-2">3</span>
+                            <small>Gere os horários automaticamente</small>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    form.addEventListener('submit', function() {
+        showLoading(submitBtn);
+    });
+});
+</script>
+{% endblock %}
+

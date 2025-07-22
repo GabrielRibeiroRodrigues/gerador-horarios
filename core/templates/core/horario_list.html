@@ -1,0 +1,251 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Horários - Sistema de Horários Escolares{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-calendar-alt me-2"></i>Horários</h2>
+                <div>
+                    <a href="{% url 'core:horario_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Novo Horário
+                    </a>
+                    <a href="{% url 'core:gerar_horarios' %}" class="btn btn-success">
+                        <i class="fas fa-magic me-1"></i>Gerar Automaticamente
+                    </a>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="turma" class="form-label">Turma</label>
+                            <select name="turma" id="turma" class="form-select">
+                                <option value="">Todas as turmas</option>
+                                {% for turma in turmas %}
+                                    <option value="{{ turma.id }}" {% if request.GET.turma == turma.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ turma.nome_codigo }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="professor" class="form-label">Professor</label>
+                            <select name="professor" id="professor" class="form-select">
+                                <option value="">Todos os professores</option>
+                                {% for professor in professores %}
+                                    <option value="{{ professor.id }}" {% if request.GET.professor == professor.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ professor.nome_completo }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="sala" class="form-label">Sala</label>
+                            <select name="sala" id="sala" class="form-select">
+                                <option value="">Todas as salas</option>
+                                {% for sala in salas %}
+                                    <option value="{{ sala.id }}" {% if request.GET.sala == sala.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ sala.nome_numero }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="disciplina" class="form-label">Disciplina</label>
+                            <select name="disciplina" id="disciplina" class="form-select">
+                                <option value="">Todas as disciplinas</option>
+                                {% for disciplina in disciplinas %}
+                                    <option value="{{ disciplina.id }}" {% if request.GET.disciplina == disciplina.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ disciplina.nome }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-outline-primary">
+                                <i class="fas fa-filter me-1"></i>Filtrar
+                            </button>
+                            <a href="{% url 'core:horario_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>Limpar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Lista de Horários -->
+            {% if horarios %}
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Dia</th>
+                                        <th>Horário</th>
+                                        <th>Turma</th>
+                                        <th>Disciplina</th>
+                                        <th>Professor</th>
+                                        <th>Sala</th>
+                                        <th>Turno</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for horario in horarios %}
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-primary">
+                                                    {{ horario.get_dia_semana_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <strong>{{ horario.horario_inicio|time:"H:i" }}</strong>
+                                                às
+                                                <strong>{{ horario.horario_fim|time:"H:i" }}</strong>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">
+                                                    {{ horario.turma.nome_codigo }}
+                                                </span>
+                                            </td>
+                                            <td>{{ horario.disciplina.nome }}</td>
+                                            <td>{{ horario.professor.nome_completo }}</td>
+                                            <td>
+                                                <span class="badge bg-secondary">
+                                                    {{ horario.sala.nome_numero }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-warning text-dark">
+                                                    {{ horario.get_turno_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <a href="{% url 'core:horario_update' horario.pk %}" 
+                                                       class="btn btn-outline-primary" title="Editar">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <a href="{% url 'core:horario_delete' horario.pk %}" 
+                                                       class="btn btn-outline-danger" title="Excluir">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Paginação -->
+                        {% if is_paginated %}
+                            <nav aria-label="Navegação de páginas">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                                Primeira
+                                            </a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                                Anterior
+                                            </a>
+                                        </li>
+                                    {% endif %}
+
+                                    <li class="page-item active">
+                                        <span class="page-link">
+                                            Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                                        </span>
+                                    </li>
+
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                                Próxima
+                                            </a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                                Última
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-info text-center">
+                    <h4><i class="fas fa-info-circle me-2"></i>Nenhum horário encontrado</h4>
+                    <p class="mb-3">Não há horários cadastrados no sistema.</p>
+                    <div>
+                        <a href="{% url 'core:horario_create' %}" class="btn btn-primary me-2">
+                            <i class="fas fa-plus me-1"></i>Criar Primeiro Horário
+                        </a>
+                        <a href="{% url 'core:gerar_horarios' %}" class="btn btn-success">
+                            <i class="fas fa-magic me-1"></i>Gerar Automaticamente
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Visualização em Grade (Opcional) -->
+<div class="modal fade" id="gradeModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Grade de Horários</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Horário</th>
+                                <th>Segunda</th>
+                                <th>Terça</th>
+                                <th>Quarta</th>
+                                <th>Quinta</th>
+                                <th>Sexta</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Grade será preenchida via JavaScript se necessário -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-submit do formulário de filtros quando houver mudança
+    const filtros = document.querySelectorAll('#turma, #professor, #sala, #disciplina');
+    filtros.forEach(filtro => {
+        filtro.addEventListener('change', function() {
+            this.form.submit();
+        });
+    });
+});
+</script>
+{% endblock %}
+

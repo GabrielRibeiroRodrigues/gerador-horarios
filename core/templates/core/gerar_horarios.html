@@ -1,0 +1,202 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Gerar Horários - Sistema de Horários Escolares{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Início</a></li>
+        <li class="breadcrumb-item active">Gerar Horários</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Header -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="bi bi-magic me-2"></i>
+            Geração Automática de Horários
+        </h1>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-gear me-2"></i>
+                        Configurações da Geração
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info" role="alert">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Em desenvolvimento:</strong> O algoritmo de geração automática de horários será implementado em breve.
+                    </div>
+                    
+                    <form method="post" id="gerarHorariosForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <h6><i class="bi bi-check2-square me-2"></i>Pré-requisitos</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Disciplinas cadastradas
+                                            <span class="badge bg-primary rounded-pill">{{ total_disciplinas }}</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Salas disponíveis
+                                            <span class="badge bg-primary rounded-pill">{{ total_salas }}</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Professores ativos
+                                            <span class="badge bg-primary rounded-pill">{{ total_professores }}</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Turmas ativas
+                                            <span class="badge bg-primary rounded-pill">{{ total_turmas }}</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h6><i class="bi bi-sliders me-2"></i>Opções de Geração</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="respeitarPreferencias" checked>
+                                        <label class="form-check-label" for="respeitarPreferencias">
+                                            Respeitar preferências dos professores
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="evitarJanelas" checked>
+                                        <label class="form-check-label" for="evitarJanelas">
+                                            Evitar janelas no horário
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="distribuirDias" checked>
+                                        <label class="form-check-label" for="distribuirDias">
+                                            Distribuir aulas ao longo da semana
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="limparAnteriores">
+                                        <label class="form-check-label" for="limparAnteriores">
+                                            Limpar horários existentes
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="d-flex justify-content-center">
+                            <button type="submit" class="btn btn-primary btn-lg" id="btnGerar">
+                                <span class="loading-spinner spinner-border spinner-border-sm me-2" role="status"></span>
+                                <span class="btn-text">
+                                    <i class="bi bi-magic me-2"></i>
+                                    Gerar Horários Automaticamente
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Como Funciona
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ol class="list-unstyled">
+                        <li class="mb-2">
+                            <span class="badge bg-primary rounded-circle me-2">1</span>
+                            <small>Analisa todas as disciplinas, professores e turmas</small>
+                        </li>
+                        <li class="mb-2">
+                            <span class="badge bg-primary rounded-circle me-2">2</span>
+                            <small>Verifica disponibilidade e preferências</small>
+                        </li>
+                        <li class="mb-2">
+                            <span class="badge bg-primary rounded-circle me-2">3</span>
+                            <small>Aloca horários evitando conflitos</small>
+                        </li>
+                        <li class="mb-2">
+                            <span class="badge bg-primary rounded-circle me-2">4</span>
+                            <small>Otimiza distribuição e reduz janelas</small>
+                        </li>
+                        <li>
+                            <span class="badge bg-primary rounded-circle me-2">5</span>
+                            <small>Gera horários finais</small>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Importante
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            <small>Configure as preferências dos professores antes de gerar</small>
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            <small>Verifique se todas as disciplinas têm professores</small>
+                        </li>
+                        <li>
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            <small>Confirme que há salas suficientes</small>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('gerarHorariosForm');
+    const btnGerar = document.getElementById('btnGerar');
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        showLoading(btnGerar);
+        
+        // Simular processo de geração
+        setTimeout(function() {
+            hideLoading(btnGerar);
+            alert('Funcionalidade em desenvolvimento! O algoritmo de geração será implementado em breve.');
+        }, 2000);
+    });
+});
+</script>
+{% endblock %}
+
