@@ -15,10 +15,10 @@ from django.db.models import Q, Count
 from django.http import JsonResponse
 from django.core.paginator import Paginator
 
-from .models import Disciplina, Sala, Professor, Turma, PreferenciaProfessor, Horario
+from .models import Disciplina, Sala, Professor, Turma, PreferenciaProfessor, Horario, BloqueioTemporario
 from .forms import (
     DisciplinaForm, SalaForm, ProfessorForm, TurmaForm, 
-    PreferenciaProfessorForm, HorarioForm, GerarHorariosForm
+    PreferenciaProfessorForm, HorarioForm, GerarHorariosForm, BloqueioTemporarioForm
 )
 
 
@@ -791,4 +791,194 @@ def _calcular_horarios_livres(sala, horarios_ocupados):
                 })
     
     return livres
+
+
+# Views para Bloqueios Temporários
+class BloqueioTemporarioListView(ListView):
+    """View para listagem de bloqueios temporários com filtros."""
+    model = BloqueioTemporario
+    template_name = 'core/bloqueio_list.html'
+    context_object_name = 'bloqueios'
+    paginate_by = 15
+    
+    def get_queryset(self):
+        """Filtra bloqueios por professor, tipo ou período."""
+        queryset = BloqueioTemporario.objects.select_related('professor').order_by('-data_inicio')
+        
+        # Filtro por professor
+        professor_id = self.request.GET.get('professor')
+        if professor_id:
+            queryset = queryset.filter(professor_id=professor_id)
+        
+        # Filtro por tipo
+        tipo = self.request.GET.get('tipo')
+        if tipo:
+            queryset = queryset.filter(tipo_bloqueio=tipo)
+        
+        # Filtro por status (ativo/inativo)
+        ativo = self.request.GET.get('ativo')
+        if ativo:
+            queryset = queryset.filter(ativo=ativo == 'true')
+        
+        # Filtro por período
+        data_inicio = self.request.GET.get('data_inicio')
+        data_fim = self.request.GET.get('data_fim')
+        if data_inicio:
+            queryset = queryset.filter(data_fim__gte=data_inicio)
+        if data_fim:
+            queryset = queryset.filter(data_inicio__lte=data_fim)
+        
+        return queryset
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['professores'] = Professor.objects.filter(ativo=True).order_by('nome_completo')
+        context['tipos_bloqueio'] = BloqueioTemporario.TIPOS_BLOQUEIO
+        return context
+
+
+class BloqueioTemporarioDetailView(DetailView):
+    """View para detalhes de um bloqueio temporário."""
+    model = BloqueioTemporario
+    template_name = 'core/bloqueio_detail.html'
+    context_object_name = 'bloqueio'
+
+
+class BloqueioTemporarioCreateView(CreateView):
+    """View para criação de bloqueios temporários."""
+    model = BloqueioTemporario
+    form_class = BloqueioTemporarioForm
+    template_name = 'core/bloqueio_form.html'
+    success_url = reverse_lazy('core:bloqueio_list')
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Bloqueio temporário criado com sucesso!')
+        return super().form_valid(form)
+    
+    def get_initial(self):
+        """Define valores iniciais baseados nos parâmetros da URL."""
+        initial = super().get_initial()
+        
+        # Se professor foi especificado na URL
+        professor_id = self.request.GET.get('professor')
+        if professor_id:
+            try:
+                professor = Professor.objects.get(id=professor_id)
+                initial['professor'] = professor
+            except Professor.DoesNotExist:
+                pass
+        
+        return initial
+
+
+class BloqueioTemporarioUpdateView(UpdateView):
+    """View para edição de bloqueios temporários."""
+    model = BloqueioTemporario
+    form_class = BloqueioTemporarioForm
+    template_name = 'core/bloqueio_form.html'
+    success_url = reverse_lazy('core:bloqueio_list')
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Bloqueio temporário atualizado com sucesso!')
+        return super().form_valid(form)
+
+
+class BloqueioTemporarioDeleteView(DeleteView):
+    """View para exclusão de bloqueios temporários."""
+    model = BloqueioTemporario
+    template_name = 'core/bloqueio_confirm_delete.html'
+    success_url = reverse_lazy('core:bloqueio_list')
+    
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, 'Bloqueio temporário removido com sucesso!')
+        return super().delete(request, *args, **kwargs)
+
+
+def professor_bloqueios_calendario(request, professor_id):
+    """
+    View para exibir bloqueios de um professor em formato de calendário.
+    """
+    professor = get_object_or_404(Professor, id=professor_id)
+    
+    # Obter bloqueios do professor
+    from datetime import datetime, timedelta
+    hoje = datetime.now().date()
+    inicio_mes = hoje.replace(day=1)
+    fim_mes = (inicio_mes + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+    
+    bloqueios = professor.bloqueios.filter(
+        ativo=True,
+        data_fim__gte=inicio_mes,
+        data_inicio__lte=fim_mes
+    ).order_by('data_inicio')
+    
+    # Preparar dados para o calendário
+    bloqueios_calendario = []
+    for bloqueio in bloqueios:
+        bloqueios_calendario.append({
+            'id': bloqueio.id,
+            'title': f"{bloqueio.get_tipo_bloqueio_display()}" + (f" - {bloqueio.get_turno_display()}" if bloqueio.turno else ""),
+            'start': bloqueio.data_inicio.isoformat(),
+            'end': (bloqueio.data_fim + timedelta(days=1)).isoformat(),
+            'color': '#dc3545' if bloqueio.tipo_bloqueio == 'falta' else '#6c757d',
+            'description': bloqueio.motivo
+        })
+    
+    context = {
+        'professor': professor,
+        'bloqueios_json': bloqueios_calendario,
+        'mes_atual': inicio_mes,
+    }
+    
+    return render(request, 'core/professor_bloqueios_calendario.html', context)
+
+
+def verificar_disponibilidade_professor(request):
+    """
+    View AJAX para verificar disponibilidade de professores em tempo real.
+    """
+    if request.method == 'GET':
+        from datetime import datetime
+        
+        professor_id = request.GET.get('professor_id')
+        data_str = request.GET.get('data')
+        turno = request.GET.get('turno', '')
+        
+        if not professor_id or not data_str:
+            return JsonResponse({'erro': 'Parâmetros insuficientes'}, status=400)
+        
+        try:
+            professor = Professor.objects.get(id=professor_id)
+            data = datetime.strptime(data_str, '%Y-%m-%d').date()
+            dia_semana = data.weekday()
+            
+            # Verificar disponibilidade
+            disponivel = professor.disponivel_para_horario(
+                dia_semana=dia_semana,
+                turno=turno if turno else None,
+                data_especifica=data
+            )
+            
+            # Buscar bloqueios ativos na data
+            bloqueios_data = professor.get_bloqueios_ativos(data, data)
+            bloqueios_info = []
+            
+            for bloqueio in bloqueios_data:
+                if bloqueio.professor_disponivel_na_data(data, turno if turno else None) == False:
+                    bloqueios_info.append({
+                        'tipo': bloqueio.get_tipo_bloqueio_display(),
+                        'motivo': bloqueio.motivo,
+                        'turno': bloqueio.get_turno_display() if bloqueio.turno else 'Dia todo'
+                    })
+            
+            return JsonResponse({
+                'disponivel': disponivel,
+                'bloqueios': bloqueios_info,
+                'professor_nome': professor.nome_completo
+            })
+            
+        except (Professor.DoesNotExist, ValueError) as e:
+            return JsonResponse({'erro': str(e)}, status=400)
+    
+    return JsonResponse({'erro': 'Método não permitido'}, status=405)
 

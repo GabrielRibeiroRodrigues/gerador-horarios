@@ -7,7 +7,7 @@ seguindo os princípios SOLID e boas práticas de desenvolvimento.
 
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Disciplina, Sala, Professor, Turma, PreferenciaProfessor, Horario
+from .models import Disciplina, Sala, Professor, Turma, PreferenciaProfessor, Horario, BloqueioTemporario
 
 
 class DisciplinaForm(forms.ModelForm):
@@ -200,13 +200,13 @@ class TurmaForm(forms.ModelForm):
     """
     Formulário para cadastro e edição de turmas.
     
-    Gerencia dados das turmas incluindo disciplinas cursadas
-    e número de alunos.
+    Gerencia dados das turmas incluindo disciplinas cursadas,
+    número de alunos e turno específico da turma.
     """
     
     class Meta:
         model = Turma
-        fields = ['nome_codigo', 'serie_periodo', 'disciplinas', 'numero_alunos', 'ativa']
+        fields = ['nome_codigo', 'serie_periodo', 'turno_turma', 'disciplinas', 'numero_alunos', 'ativa']
         widgets = {
             'nome_codigo': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -216,6 +216,9 @@ class TurmaForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Ex: 1º Ano, 2º Período...'
             }),
+            'turno_turma': forms.Select(attrs={
+                'class': 'form-select'
+            }),
             'disciplinas': forms.SelectMultiple(attrs={
                 'class': 'form-select',
                 'size': 6
@@ -223,7 +226,7 @@ class TurmaForm(forms.ModelForm):
             'numero_alunos': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'min': 1,
-                'max': 50
+                'max': 100
             }),
             'ativa': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
@@ -232,6 +235,7 @@ class TurmaForm(forms.ModelForm):
         help_texts = {
             'nome_codigo': 'Nome ou código de identificação da turma',
             'serie_periodo': 'Série ou período da turma',
+            'turno_turma': 'Turno específico em que a turma estuda',
             'disciplinas': 'Disciplinas cursadas pela turma',
             'numero_alunos': 'Número de alunos matriculados na turma',
             'ativa': 'Turmas inativas não aparecem na geração de horários'
@@ -480,5 +484,131 @@ class GerarHorariosForm(forms.Form):
             'size': 5
         }),
         help_text='Deixe vazio para gerar horários para todas as turmas ativas'
+    )
+
+
+class BloqueioTemporarioForm(forms.ModelForm):
+    """
+    Formulário para cadastro e edição de bloqueios temporários de professores.
+    
+    Permite definir quando um professor não pode dar aula em períodos específicos.
+    """
+    
+    class Meta:
+        model = BloqueioTemporario
+        fields = [
+            'professor', 'data_inicio', 'data_fim', 'turno', 
+            'tipo_bloqueio', 'motivo', 'recorrente', 'ativo'
+        ]
+        widgets = {
+            'professor': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'data_inicio': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'data_fim': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'turno': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'tipo_bloqueio': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'motivo': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Descreva o motivo do bloqueio...'
+            }),
+            'recorrente': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'ativo': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            })
+        }
+        help_texts = {
+            'professor': 'Professor que terá o bloqueio',
+            'data_inicio': 'Data de início do bloqueio',
+            'data_fim': 'Data de fim (igual ao início para um dia específico)',
+            'turno': 'Turno específico (deixe vazio para o dia todo)',
+            'tipo_bloqueio': 'Motivo/categoria do bloqueio',
+            'motivo': 'Descrição detalhada do bloqueio',
+            'recorrente': 'Se repete semanalmente (ex: toda quarta-feira)',
+            'ativo': 'Se o bloqueio está ativo'
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Configurar queryset de professores apenas ativos
+        self.fields['professor'].queryset = Professor.objects.filter(ativo=True).order_by('nome_completo')
+        
+        # Adicionar opção vazia para turno
+        self.fields['turno'].choices = [('', 'Dia todo')] + list(self.fields['turno'].choices)
+
+    def clean(self):
+        """Validação customizada do formulário."""
+        cleaned_data = super().clean()
+        data_inicio = cleaned_data.get('data_inicio')
+        data_fim = cleaned_data.get('data_fim')
+        recorrente = cleaned_data.get('recorrente')
+        
+        if data_inicio and data_fim:
+            if data_inicio > data_fim:
+                raise ValidationError("Data de início deve ser anterior ou igual à data de fim.")
+            
+            # Para bloqueios recorrentes, as datas devem ser no mesmo dia da semana
+            if recorrente and data_inicio != data_fim:
+                if data_inicio.weekday() != data_fim.weekday():
+                    raise ValidationError(
+                        "Para bloqueios recorrentes, as datas de início e fim devem ser no mesmo dia da semana."
+                    )
+        
+        return cleaned_data
+
+
+class GerarHorariosAvancadoForm(GerarHorariosForm):
+    """
+    Formulário avançado para geração de horários com novas opções.
+    """
+    
+    usar_backtracking = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        }),
+        help_text='Usar algoritmo avançado com backtracking para melhor otimização'
+    )
+    
+    max_tentativas = forms.IntegerField(
+        initial=1000,
+        min_value=100,
+        max_value=10000,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control'
+        }),
+        help_text='Número máximo de tentativas do algoritmo de backtracking'
+    )
+    
+    considerar_turnos_turma = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        }),
+        help_text='Respeitar os turnos específicos configurados para cada turma'
+    )
+    
+    verificar_bloqueios = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        }),
+        help_text='Verificar bloqueios temporários dos professores'
     )
 

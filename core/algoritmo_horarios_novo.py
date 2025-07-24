@@ -33,11 +33,12 @@ class GeradorHorariosRobusto:
             ('11:30', '12:20')
         ],
         'tarde': [
-            ('13:00', '13:50'),
             ('13:50', '14:40'),
-            ('14:50', '15:40'),
-            ('15:40', '16:30'),
-            ('16:30', '17:20')
+            ('14:40', '15:30'),
+            ('15:50', '16:40'),
+            ('16:40', '17:30'),
+            ('17:30', '18:20'),
+            ('18:20', '19:10')
         ],
         'noite': [
             ('19:20', '20:10'),
@@ -423,25 +424,18 @@ class GeradorHorariosRobusto:
                 else:
                     return False
         
-        # Verificar preferências - LÓGICA CORRIGIDA
+        # Verificar preferências
         preferencias = PreferenciaProfessor.objects.filter(
             professor=professor,
             dia_semana=dia
         )
         
-        # Se há preferências específicas para este dia, verificar disponibilidade
-        if preferencias.exists():
-            for pref in preferencias:
-                # Se o turno não está especificado na preferência, se aplica a todos os turnos
-                # Se o turno está especificado, só se aplica a esse turno
-                if pref.turno is None or pref.turno == turno:
-                    # Se a disciplina não está especificada, se aplica a todas as disciplinas
-                    # Se a disciplina está especificada, só se aplica a essa disciplina
-                    if pref.disciplina is None or pref.disciplina == disciplina:
-                        if not pref.disponivel:  # Se marcado como INDISPONÍVEL
-                            return False
+        for pref in preferencias:
+            if pref.turno is None or pref.turno == turno:
+                if pref.disciplina is None or pref.disciplina == disciplina:
+                    return pref.disponivel
         
-        # Se não há preferências específicas OU todas as preferências permitiram, assume disponível
+        # Se não há preferência específica, assume disponível
         return True
     
     def _horarios_sobrepoem(self, inicio1: str, fim1: str, inicio2: str, fim2: str) -> bool:

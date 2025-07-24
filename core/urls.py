@@ -57,5 +57,16 @@ urlpatterns = [
     
     # URL para geração de horários
     path('gerar-horarios/', views.gerar_horarios, name='gerar_horarios'),
+    
+    # URLs para Bloqueios Temporários
+    path('bloqueios/', views.BloqueioTemporarioListView.as_view(), name='bloqueio_list'),
+    path('bloqueios/<int:pk>/', views.BloqueioTemporarioDetailView.as_view(), name='bloqueio_detail'),
+    path('bloqueios/novo/', views.BloqueioTemporarioCreateView.as_view(), name='bloqueio_create'),
+    path('bloqueios/<int:pk>/editar/', views.BloqueioTemporarioUpdateView.as_view(), name='bloqueio_update'),
+    path('bloqueios/<int:pk>/deletar/', views.BloqueioTemporarioDeleteView.as_view(), name='bloqueio_delete'),
+    
+    # URLs especiais para bloqueios
+    path('professor/<int:professor_id>/bloqueios/calendario/', views.professor_bloqueios_calendario, name='professor_bloqueios_calendario'),
+    path('ajax/verificar-disponibilidade/', views.verificar_disponibilidade_professor, name='verificar_disponibilidade_professor'),
 ]
 

@@ -172,6 +172,104 @@ class Professor(models.Model):
         """Representação string do modelo."""
         return self.nome_completo
 
+    def disponivel_para_horario(self, dia_semana=None, turno=None, disciplina=None, data_especifica=None):
+        """
+        Verifica se o professor está disponível para um horário específico.
+        
+        Args:
+            dia_semana: Dia da semana (0-6)
+            turno: Turno ('manha', 'tarde', 'noite')
+            disciplina: Disciplina específica
+            data_especifica: Data específica para verificar bloqueios (datetime.date)
+            
+        Returns:
+            bool: True se disponível, False caso contrário
+        """
+        # Verificar bloqueios temporários primeiro
+        if data_especifica:
+            for bloqueio in self.bloqueios.filter(ativo=True):
+                if not bloqueio.professor_disponivel_na_data(data_especifica, turno):
+                    return False
+        
+        # Buscar preferências específicas
+        preferencias = self.preferencias.all()
+        
+        # Se não há preferências configuradas, assume disponível (sem bloqueios)
+        if not preferencias.exists():
+            return True
+        
+        # Filtrar preferências relevantes
+        filtros = {}
+        if dia_semana is not None:
+            filtros['dia_semana'] = dia_semana
+        if turno:
+            filtros['turno'] = turno
+        if disciplina:
+            filtros['disciplina'] = disciplina
+        
+        # Buscar preferência específica
+        pref_especifica = preferencias.filter(**filtros).first()
+        if pref_especifica:
+            return pref_especifica.disponivel
+        
+        # Se não há preferência específica, buscar por padrões mais gerais
+        for campo in ['disciplina', 'turno', 'dia_semana']:
+            if campo in filtros:
+                del filtros[campo]
+                pref_geral = preferencias.filter(**filtros).first()
+                if pref_geral:
+                    return pref_geral.disponivel
+        
+        # Se não encontrou nenhuma preferência específica, assume disponível
+        return True
+
+    def get_preferencia_score(self, dia_semana=None, turno=None, disciplina=None, data_especifica=None):
+        """
+        Retorna score de preferência para um horário específico.
+        
+        Returns:
+            int: Score de 1-5 (1=indisponível, 5=altamente preferencial)
+        """
+        if not self.disponivel_para_horario(dia_semana, turno, disciplina, data_especifica):
+            return 1
+        
+        # Buscar preferência mais específica
+        preferencias = self.preferencias.all()
+        
+        filtros = {}
+        if dia_semana is not None:
+            filtros['dia_semana'] = dia_semana
+        if turno:
+            filtros['turno'] = turno
+        if disciplina:
+            filtros['disciplina'] = disciplina
+        
+        pref = preferencias.filter(**filtros).first()
+        if pref:
+            return pref.prioridade
+        
+        return 3  # Score neutro se não há preferência específica
+
+    def get_bloqueios_ativos(self, data_inicio=None, data_fim=None):
+        """
+        Retorna bloqueios ativos do professor em um período.
+        
+        Args:
+            data_inicio: Data de início do período (opcional)
+            data_fim: Data de fim do período (opcional)
+            
+        Returns:
+            QuerySet: Bloqueios ativos no período
+        """
+        bloqueios = self.bloqueios.filter(ativo=True)
+        
+        if data_inicio:
+            bloqueios = bloqueios.filter(data_fim__gte=data_inicio)
+        if data_fim:
+            bloqueios = bloqueios.filter(data_inicio__lte=data_fim)
+        
+        return bloqueios.order_by('data_inicio')
+
 
 class Turma(models.Model):
     """
@@ -180,12 +278,21 @@ class Turma(models.Model):
     Attributes:
         nome_codigo: Nome ou código da turma
         serie_periodo: Série ou período da turma
+        turno_turma: Turno específico da turma (matutino, vespertino, integral, noturno)
         disciplinas: Disciplinas cursadas pela turma
         numero_alunos: Número de alunos na turma
         ativa: Se a turma está ativa no sistema
         criado_em: Data de criação do registro
         atualizado_em: Data da última atualização
     """
+    TURNOS_TURMA = [
+        ('matutino', 'Matutino (Manhã)'),
+        ('vespertino', 'Vespertino (Tarde)'),
+        ('noturno', 'Noturno (Noite)'),
+        ('integral', 'Integral (Manhã e Tarde)'),
+        ('flexivel', 'Flexível (Qualquer Turno)'),
+    ]
+    
     nome_codigo = models.CharField(
         max_length=50,
         verbose_name="Nome/Código",
@@ -195,6 +302,13 @@ class Turma(models.Model):
         max_length=50,
         verbose_name="Série/Período",
         help_text="Série ou período da turma"
+    )
+    turno_turma = models.CharField(
+        max_length=15,
+        choices=TURNOS_TURMA,
+        default='flexivel',
+        verbose_name="Turno da Turma",
+        help_text="Turno específico em que a turma estuda"
     )
     disciplinas = models.ManyToManyField(
         Disciplina,
@@ -222,7 +336,75 @@ class Turma(models.Model):
 
     def __str__(self):
         """Representação string do modelo."""
-        return f"{self.nome_codigo} ({self.serie_periodo})"
+        return f"{self.nome_codigo} ({self.serie_periodo}) - {self.get_turno_turma_display()}"
+
+    def get_turnos_permitidos(self):
+        """
+        Retorna lista de turnos permitidos baseado no turno da turma.
+        
+        Returns:
+            list: Lista de turnos permitidos para esta turma
+        """
+        if self.turno_turma == 'matutino':
+            return ['manha']
+        elif self.turno_turma == 'vespertino':
+            return ['tarde']
+        elif self.turno_turma == 'noturno':
+            return ['noite']
+        elif self.turno_turma == 'integral':
+            return ['manha', 'tarde']
+        else:  # flexivel
+            return ['manha', 'tarde', 'noite']
+
+    def pode_ter_aula_no_turno(self, turno):
+        """
+        Verifica se a turma pode ter aula em um turno específico.
+        
+        Args:
+            turno: Turno a verificar ('manha', 'tarde', 'noite')
+            
+        Returns:
+            bool: True se pode ter aula, False caso contrário
+        """
+        return turno in self.get_turnos_permitidos()
+
+    def get_horarios_disponiveis_por_turno(self):
+        """
+        Retorna dicionário com horários disponíveis por turno para esta turma.
+        
+        Returns:
+            dict: Dicionário com turnos como chave e horários como valor
+        """
+        from datetime import time
+        
+        horarios_base = {
+            'manha': [
+                (time(7, 0), time(7, 50)),
+                (time(7, 50), time(8, 40)),
+                (time(8, 40), time(9, 30)),
+                (time(9, 50), time(10, 40)),
+                (time(10, 40), time(11, 30)),
+                (time(11, 30), time(12, 20)),
+            ],
+            'tarde': [
+                (time(13, 0), time(13, 50)),
+                (time(13, 50), time(14, 40)),
+                (time(14, 40), time(15, 30)),
+                (time(15, 50), time(16, 40)),
+                (time(16, 40), time(17, 30)),
+                (time(17, 30), time(18, 20)),
+            ],
+            'noite': [
+                (time(18, 30), time(19, 20)),
+                (time(19, 20), time(20, 10)),
+                (time(20, 10), time(21, 0)),
+                (time(21, 10), time(22, 0)),
+                (time(22, 0), time(22, 50)),
+            ]
+        }
+        
+        turnos_permitidos = self.get_turnos_permitidos()
+        return {turno: horarios for turno, horarios in horarios_base.items() if turno in turnos_permitidos}
 
 
 class PreferenciaProfessor(models.Model):
@@ -284,6 +466,22 @@ class PreferenciaProfessor(models.Model):
         blank=True,
         help_text="Turno específico (deixe vazio para qualquer turno)"
     )
+    disponivel = models.BooleanField(
+        default=True,
+        verbose_name="Disponível",
+        help_text="Se o professor está disponível neste horário/turno/dia"
+    )
+    preferencial = models.BooleanField(
+        default=False,
+        verbose_name="Preferencial",
+        help_text="Se este é um horário/turno/dia preferencial para o professor"
+    )
+    prioridade = models.IntegerField(
+        default=3,
+        choices=[(1, 'Baixa'), (2, 'Média'), (3, 'Normal'), (4, 'Alta'), (5, 'Crítica')],
+        verbose_name="Prioridade",
+        help_text="Nível de prioridade desta preferência (1=Baixa, 5=Crítica)"
+    )
     observacoes = models.TextField(
         blank=True,
         verbose_name="Observações",
@@ -306,7 +504,151 @@ class PreferenciaProfessor(models.Model):
             partes.append(f"- {self.get_dia_semana_display()}")
         if self.turno:
             partes.append(f"- {self.get_turno_display()}")
+        
+        # Adicionar status
+        status = []
+        if not self.disponivel:
+            status.append("INDISPONÍVEL")
+        elif self.preferencial:
+            status.append("PREFERENCIAL")
+        if self.prioridade != 3:
+            status.append(f"Prioridade: {self.get_prioridade_display()}")
+        
+        if status:
+            partes.append(f"({', '.join(status)})")
+        
         return " ".join(partes)
+
+    def clean(self):
+        """Validação customizada do modelo."""
+        from django.core.exceptions import ValidationError
+        
+        # Não pode ser preferencial e indisponível ao mesmo tempo
+        if not self.disponivel and self.preferencial:
+            raise ValidationError("Um horário não pode ser preferencial e indisponível simultaneamente.")
+        
+        # Se não está disponível, prioridade deve ser baixa
+        if not self.disponivel and self.prioridade > 2:
+            raise ValidationError("Horários indisponíveis devem ter prioridade baixa (1-2).")
+        
+        # Se é preferencial, prioridade deve ser alta
+        if self.preferencial and self.prioridade < 4:
+            raise ValidationError("Horários preferenciais devem ter prioridade alta (4-5).")
+
+
+class BloqueioTemporario(models.Model):
+    """
+    Modelo para representar bloqueios temporários de professores.
+    
+    Permite definir quando um professor não pode dar aula em dias/períodos específicos,
+    como licenças, faltas programadas, reuniões, etc.
+    """
+    TIPOS_BLOQUEIO = [
+        ('falta', 'Falta/Ausência'),
+        ('licenca', 'Licença'),
+        ('reuniao', 'Reunião'),
+        ('capacitacao', 'Capacitação/Curso'),
+        ('pessoal', 'Motivo Pessoal'),
+        ('outros', 'Outros'),
+    ]
+    
+    professor = models.ForeignKey(
+        Professor,
+        on_delete=models.CASCADE,
+        verbose_name="Professor",
+        related_name="bloqueios"
+    )
+    data_inicio = models.DateField(
+        verbose_name="Data de Início",
+        help_text="Data de início do bloqueio"
+    )
+    data_fim = models.DateField(
+        verbose_name="Data de Fim",
+        help_text="Data de fim do bloqueio (deixe igual ao início para um dia específico)"
+    )
+    turno = models.CharField(
+        max_length=10,
+        choices=PreferenciaProfessor.TURNOS,
+        verbose_name="Turno",
+        blank=True,
+        help_text="Turno específico do bloqueio (deixe vazio para o dia todo)"
+    )
+    tipo_bloqueio = models.CharField(
+        max_length=20,
+        choices=TIPOS_BLOQUEIO,
+        default='falta',
+        verbose_name="Tipo de Bloqueio",
+        help_text="Motivo do bloqueio"
+    )
+    motivo = models.TextField(
+        verbose_name="Motivo/Observações",
+        help_text="Descrição detalhada do motivo do bloqueio",
+        blank=True
+    )
+    recorrente = models.BooleanField(
+        default=False,
+        verbose_name="Recorrente",
+        help_text="Se este bloqueio se repete semanalmente (ex: toda quarta-feira)"
+    )
+    ativo = models.BooleanField(
+        default=True,
+        verbose_name="Ativo",
+        help_text="Se o bloqueio está ativo"
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Bloqueio Temporário"
+        verbose_name_plural = "Bloqueios Temporários"
+        ordering = ['data_inicio', 'professor__nome_completo']
+
+    def __str__(self):
+        """Representação string do modelo."""
+        if self.data_inicio == self.data_fim:
+            data_str = self.data_inicio.strftime("%d/%m/%Y")
+        else:
+            data_str = f"{self.data_inicio.strftime('%d/%m/%Y')} a {self.data_fim.strftime('%d/%m/%Y')}"
+        
+        turno_str = f" - {self.get_turno_display()}" if self.turno else ""
+        recorrente_str = " (Recorrente)" if self.recorrente else ""
+        
+        return f"{self.professor.nome_completo} - {data_str}{turno_str} - {self.get_tipo_bloqueio_display()}{recorrente_str}"
+
+    def clean(self):
+        """Validação customizada do modelo."""
+        from django.core.exceptions import ValidationError
+        
+        if self.data_inicio > self.data_fim:
+            raise ValidationError("Data de início deve ser anterior ou igual à data de fim.")
+
+    def professor_disponivel_na_data(self, data, turno=None):
+        """
+        Verifica se o professor está disponível em uma data específica.
+        
+        Args:
+            data: Data a verificar (datetime.date)
+            turno: Turno específico (opcional)
+            
+        Returns:
+            bool: False se bloqueado, True se disponível
+        """
+        if not self.ativo:
+            return True
+        
+        # Verificar se a data está no período do bloqueio
+        if self.recorrente:
+            # Para bloqueios recorrentes, verificar dia da semana
+            if data.weekday() == self.data_inicio.weekday():
+                if not self.turno or not turno or self.turno == turno:
+                    return False
+        else:
+            # Para bloqueios específicos, verificar período
+            if self.data_inicio <= data <= self.data_fim:
+                if not self.turno or not turno or self.turno == turno:
+                    return False
+        
+        return True
 
 
 class Horario(models.Model):

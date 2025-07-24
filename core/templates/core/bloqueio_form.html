@@ -1,0 +1,217 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if object %}Editar Bloqueio{% else %}Novo Bloqueio{% endif %} - 
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">
+                        <i class="fas fa-ban"></i>
+                        {% if object %}
+                            Editar Bloqueio Temporário
+                        {% else %}
+                            Novo Bloqueio Temporário
+                        {% endif %}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Professor -->
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="{{ form.professor.id_for_label }}" class="form-label">
+                                    <i class="fas fa-user-tie"></i> {{ form.professor.label }}
+                                </label>
+                                {{ form.professor }}
+                                {% if form.professor.help_text %}
+                                    <div class="form-text">{{ form.professor.help_text }}</div>
+                                {% endif %}
+                                {% if form.professor.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.professor.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Tipo de Bloqueio -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.tipo_bloqueio.id_for_label }}" class="form-label">
+                                    <i class="fas fa-tag"></i> {{ form.tipo_bloqueio.label }}
+                                </label>
+                                {{ form.tipo_bloqueio }}
+                                {% if form.tipo_bloqueio.help_text %}
+                                    <div class="form-text">{{ form.tipo_bloqueio.help_text }}</div>
+                                {% endif %}
+                                {% if form.tipo_bloqueio.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.tipo_bloqueio.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.turno.id_for_label }}" class="form-label">
+                                    <i class="fas fa-clock"></i> {{ form.turno.label }}
+                                </label>
+                                {{ form.turno }}
+                                {% if form.turno.help_text %}
+                                    <div class="form-text">{{ form.turno.help_text }}</div>
+                                {% endif %}
+                                {% if form.turno.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.turno.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Período -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.data_inicio.id_for_label }}" class="form-label">
+                                    <i class="fas fa-calendar-alt"></i> {{ form.data_inicio.label }}
+                                </label>
+                                {{ form.data_inicio }}
+                                {% if form.data_inicio.help_text %}
+                                    <div class="form-text">{{ form.data_inicio.help_text }}</div>
+                                {% endif %}
+                                {% if form.data_inicio.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.data_inicio.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.data_fim.id_for_label }}" class="form-label">
+                                    <i class="fas fa-calendar-alt"></i> {{ form.data_fim.label }}
+                                </label>
+                                {{ form.data_fim }}
+                                {% if form.data_fim.help_text %}
+                                    <div class="form-text">{{ form.data_fim.help_text }}</div>
+                                {% endif %}
+                                {% if form.data_fim.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.data_fim.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Checkboxes -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    {{ form.recorrente }}
+                                    <label class="form-check-label" for="{{ form.recorrente.id_for_label }}">
+                                        <i class="fas fa-repeat"></i> {{ form.recorrente.label }}
+                                    </label>
+                                    {% if form.recorrente.help_text %}
+                                        <div class="form-text">{{ form.recorrente.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    {{ form.ativo }}
+                                    <label class="form-check-label" for="{{ form.ativo.id_for_label }}">
+                                        <i class="fas fa-check-circle"></i> {{ form.ativo.label }}
+                                    </label>
+                                    {% if form.ativo.help_text %}
+                                        <div class="form-text">{{ form.ativo.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Motivo -->
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="{{ form.motivo.id_for_label }}" class="form-label">
+                                    <i class="fas fa-comment"></i> {{ form.motivo.label }}
+                                </label>
+                                {{ form.motivo }}
+                                {% if form.motivo.help_text %}
+                                    <div class="form-text">{{ form.motivo.help_text }}</div>
+                                {% endif %}
+                                {% if form.motivo.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.motivo.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Botões -->
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'core:bloqueio_list' %}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left"></i> Voltar
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i>
+                                        {% if object %}Atualizar{% else %}Criar{% endif %} Bloqueio
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Card de ajuda -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-lightbulb text-warning"></i> Dicas de Uso</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-calendar-day"></i> Bloqueio por Dia</h6>
+                            <p class="small">Para bloquear um professor em um dia específico (ex: todas as quartas-feiras), deixe o campo <strong>Turno</strong> vazio.</p>
+                            
+                            <h6><i class="fas fa-clock"></i> Bloqueio por Turno</h6>
+                            <p class="small">Para bloquear apenas um período específico (manhã, tarde ou noite), selecione o turno desejado.</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-repeat"></i> Bloqueio Recorrente</h6>
+                            <p class="small">Marque <strong>Recorrente</strong> para que o bloqueio se repita semanalmente no mesmo dia/turno.</p>
+                            
+                            <h6><i class="fas fa-robot"></i> Algoritmo</h6>
+                            <p class="small">O algoritmo de geração de horários respeitará automaticamente estes bloqueios.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Validação de data
+document.addEventListener('DOMContentLoaded', function() {
+    const dataInicio = document.getElementById('{{ form.data_inicio.id_for_label }}');
+    const dataFim = document.getElementById('{{ form.data_fim.id_for_label }}');
+    
+    if (dataInicio && dataFim) {
+        dataInicio.addEventListener('change', function() {
+            dataFim.min = this.value;
+        });
+        
+        dataFim.addEventListener('change', function() {
+            if (dataInicio.value && this.value < dataInicio.value) {
+                alert('A data de fim não pode ser anterior à data de início.');
+                this.value = dataInicio.value;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
