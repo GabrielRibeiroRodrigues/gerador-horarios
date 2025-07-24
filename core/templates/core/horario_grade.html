@@ -1,0 +1,489 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% load core_extras %}
+
+{% block title %}Grade de Horários - Sistema de Horários Escolares{% endblock %}
+
+{% block extra_css %}
+<style>
+    .grade-container {
+        overflow-x: auto;
+        margin: 20px 0;
+    }
+    
+    .grade-horarios {
+        min-width: 800px;
+        border-collapse: collapse;
+        width: 100%;
+    }
+    
+    .grade-horarios th,
+    .grade-horarios td {
+        border: 1px solid #dee2e6;
+        padding: 8px;
+        text-align: center;
+        vertical-align: middle;
+        position: relative;
+    }
+    
+    .grade-horarios th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .slot-horario {
+        width: 150px;
+        height: 60px;
+        min-height: 60px;
+        background-color: #f8f9fa;
+        transition: all 0.2s ease;
+    }
+    
+    .slot-horario.ocupado {
+        background-color: #e3f2fd;
+    }
+    
+    .slot-horario.droppable {
+        background-color: #c8e6c9 !important;
+        border: 2px dashed #4caf50;
+    }
+    
+    .slot-horario.conflito {
+        background-color: #ffcdd2 !important;
+        border: 2px dashed #f44336;
+    }
+    
+    .horario-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 6px;
+        border-radius: 8px;
+        cursor: move;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        font-size: 0.85rem;
+        line-height: 1.2;
+        position: relative;
+        z-index: 5;
+    }
+    
+    .horario-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .horario-card.dragging {
+        opacity: 0.7;
+        transform: rotate(5deg);
+        z-index: 1000;
+    }
+    
+    .horario-professor {
+        font-weight: bold;
+        margin-bottom: 2px;
+    }
+    
+    .horario-disciplina {
+        font-size: 0.8rem;
+        opacity: 0.9;
+    }
+    
+    .horario-turma {
+        font-size: 0.75rem;
+        background: rgba(255,255,255,0.2);
+        padding: 1px 4px;
+        border-radius: 3px;
+        margin-top: 2px;
+        display: inline-block;
+    }
+    
+    .slot-header {
+        background-color: #6c757d;
+        color: white;
+        font-weight: bold;
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        width: 80px;
+    }
+    
+    .intervalo {
+        background-color: #fff3cd !important;
+        color: #856404;
+        font-style: italic;
+    }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+    
+    .loading-spinner {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-calendar-week me-2"></i>Grade de Horários</h2>
+                <div>
+                    <a href="{% url 'core:horario_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-list me-1"></i>Visualização em Lista
+                    </a>
+                    <a href="{% url 'core:horario_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Novo Horário
+                    </a>
+                    <a href="{% url 'core:gerar_horarios' %}" class="btn btn-success">
+                        <i class="fas fa-magic me-1"></i>Gerar Automaticamente
+                    </a>
+                </div>
+            </div>
+
+            <!-- Instruções -->
+            <div class="alert alert-info" role="alert">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Como usar:</strong> Arraste e solte os horários para movê-los. 
+                Verde = posição válida, Vermelho = conflito detectado.
+            </div>
+
+            <!-- Grade de Horários -->
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="grade-container">
+                        <table class="grade-horarios">
+                            <thead>
+                                <tr>
+                                    <th class="slot-header">Horário</th>
+                                    {% for dia_num, dia_nome in dias_semana %}
+                                        <th>{{ dia_nome }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for inicio, fim in slots_horario %}
+                                    <tr>
+                                        <td class="slot-header">
+                                            {{ inicio }}<br>{{ fim }}
+                                        </td>
+                                        {% for dia_num, dia_nome in dias_semana %}
+                                            <td class="slot-horario" 
+                                                data-dia="{{ dia_num }}" 
+                                                data-inicio="{{ inicio }}" 
+                                                data-fim="{{ fim }}"
+                                                id="slot-{{ dia_num }}-{{ inicio }}-{{ fim }}">
+                                                
+                                                <!-- O horário será preenchido via JavaScript inicialmente -->
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
+        </div>
+        <div class="mt-2">Movendo horário...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Dados dos horários vindos do servidor
+    const horariosData = {{ horarios_json|safe }};
+    
+    let draggedElement = null;
+    let originalParent = null;
+    
+    // Preencher grade com horários existentes
+    preencherGrade();
+    
+    function preencherGrade() {
+        horariosData.forEach(horario => {
+            const slotId = `slot-${horario.dia_semana}-${horario.horario_inicio}-${horario.horario_fim}`;
+            const slot = document.getElementById(slotId);
+            
+            if (slot) {
+                const horarioCard = criarHorarioCard(horario);
+                slot.appendChild(horarioCard);
+                slot.setAttribute('data-ocupado', 'true');
+                
+                // Adicionar event listeners
+                horarioCard.addEventListener('dragstart', handleDragStart);
+                horarioCard.addEventListener('dragend', handleDragEnd);
+                
+                console.log(`Horário adicionado: ${horario.professor.nome} - ${horario.disciplina} no slot ${slotId}`);
+            } else {
+                console.error(`Slot não encontrado: ${slotId}`);
+            }
+        });
+        
+        console.log(`Total de horários carregados: ${horariosData.length}`);
+    }
+    
+    function criarHorarioCard(horario) {
+        const card = document.createElement('div');
+        card.className = 'horario-card';
+        card.draggable = true;
+        card.dataset.horarioId = horario.id;
+        card.dataset.professorId = horario.professor.id;
+        card.dataset.salaId = horario.sala.id;
+        card.dataset.turmaId = horario.turma.id;
+        
+        card.innerHTML = `
+            <div class="horario-professor">${truncateText(horario.professor.nome, 15)}</div>
+            <div class="horario-disciplina">${horario.disciplina}</div>
+            <div class="horario-turma">${horario.turma.codigo}</div>
+        `;
+        
+        return card;
+    }
+    
+    function truncateText(text, maxLength) {
+        return text.length > maxLength ? text.substring(0, maxLength - 3) + '...' : text;
+    }
+    
+    // Event listeners para slots
+    document.querySelectorAll('.slot-horario').forEach(slot => {
+        slot.addEventListener('dragover', handleDragOver);
+        slot.addEventListener('drop', handleDrop);
+        slot.addEventListener('dragenter', handleDragEnter);
+        slot.addEventListener('dragleave', handleDragLeave);
+    });
+    
+    function handleDragStart(e) {
+        draggedElement = this;
+        originalParent = this.parentElement;
+        this.classList.add('dragging');
+        
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', this.outerHTML);
+    }
+    
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        
+        // Limpar classes de feedback visual
+        document.querySelectorAll('.slot-horario').forEach(slot => {
+            slot.classList.remove('droppable', 'conflito');
+        });
+    }
+    
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    }
+    
+    function handleDragEnter(e) {
+        e.preventDefault();
+        
+        // Verificar se pode soltar aqui
+        if (draggedElement) {
+            const canDrop = canDropHere(this, draggedElement);
+            console.log(`Drag enter - Slot: ${this.dataset.dia}-${this.dataset.inicio}, CanDrop: ${canDrop}`);
+            
+            if (canDrop) {
+                this.classList.add('droppable');
+            } else {
+                this.classList.add('conflito');
+            }
+        }
+    }
+    
+    function handleDragLeave(e) {
+        // Só remove a classe se realmente saiu do elemento
+        if (!this.contains(e.relatedTarget)) {
+            this.classList.remove('droppable', 'conflito');
+        }
+    }
+    
+    function handleDrop(e) {
+        e.preventDefault();
+        
+        if (!draggedElement) {
+            console.log('❌ Nenhum elemento sendo arrastado');
+            return;
+        }
+        
+        const targetSlot = this;
+        
+        console.log('=== handleDrop DEBUG ===');
+        console.log('Target slot:', targetSlot.dataset);
+        console.log('Dragged element:', draggedElement.dataset);
+        
+        // Verificar se pode soltar
+        if (!canDropHere(targetSlot, draggedElement)) {
+            showMessage('Não é possível mover o horário para esta posição.', 'error');
+            return;
+        }
+        
+        // Dados da nova posição
+        const novoDia = targetSlot.dataset.dia;
+        const novoInicio = targetSlot.dataset.inicio;
+        const novoFim = targetSlot.dataset.fim;
+        const horarioId = draggedElement.dataset.horarioId;
+        
+        console.log('Enviando dados:', {
+            horario_id: horarioId,
+            novo_dia: novoDia,
+            novo_inicio: novoInicio,
+            novo_fim: novoFim
+        });
+        
+        // Mostrar loading
+        showLoading(true);
+        
+        // Fazer requisição AJAX para mover o horário
+        fetch('{% url "core:mover_horario" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                horario_id: horarioId,
+                novo_dia: novoDia,
+                novo_inicio: novoInicio,
+                novo_fim: novoFim
+            })
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            showLoading(false);
+            console.log('Response data:', data);
+            
+            if (data.sucesso) {
+                // Mover o elemento visualmente
+                moveElement(draggedElement, targetSlot);
+                showMessage(data.mensagem, 'success');
+            } else {
+                showMessage(data.erro || 'Erro ao mover horário', 'error');
+            }
+        })
+        .catch(error => {
+            showLoading(false);
+            showMessage('Erro de conexão ao mover horário', 'error');
+            console.error('Erro:', error);
+        });
+        
+        // Limpar classes
+        targetSlot.classList.remove('droppable', 'conflito');
+    }
+    
+    function canDropHere(targetSlot, horarioCard) {
+        // DEBUG: Log da tentativa
+        console.log('=== canDropHere DEBUG ===');
+        console.log('Target slot:', targetSlot.dataset);
+        console.log('Horario card:', horarioCard.dataset);
+        console.log('Original parent:', originalParent?.dataset || 'none');
+        
+        // Se é o mesmo slot de origem, pode soltar
+        if (targetSlot === originalParent) {
+            console.log('✅ Mesmo slot de origem - PERMITIDO');
+            return true;
+        }
+        
+        // Se o slot já tem um horário diferente, não pode soltar
+        const cardExistente = targetSlot.querySelector('.horario-card');
+        if (cardExistente && cardExistente !== horarioCard) {
+            console.log('❌ Slot já ocupado por outro horário - NEGADO');
+            return false;
+        }
+        
+        // Para movimentos simples dentro da mesma grade, permitir por padrão
+        // A validação real será feita no backend
+        console.log('✅ Validação cliente OK - enviando para servidor');
+        return true;
+    }
+    
+    function moveElement(element, targetSlot) {
+        // Remover elemento do slot anterior
+        if (originalParent && originalParent !== targetSlot) {
+            originalParent.removeAttribute('data-ocupado');
+        }
+        
+        // Mover elemento para o novo slot
+        targetSlot.appendChild(element);
+        targetSlot.setAttribute('data-ocupado', 'true');
+        
+        // Atualizar referência
+        originalParent = targetSlot;
+    }
+    
+    function showMessage(message, type) {
+        // Criar e mostrar mensagem tipo toast
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const icon = type === 'success' ? 'check-circle' : 'exclamation-triangle';
+        
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+        alertDiv.style.top = '20px';
+        alertDiv.style.right = '20px';
+        alertDiv.style.zIndex = '9999';
+        alertDiv.innerHTML = `
+            <i class="fas fa-${icon} me-2"></i>${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alertDiv);
+        
+        // Auto remover após 5 segundos
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+    
+    function showLoading(show) {
+        const overlay = document.getElementById('loadingOverlay');
+        overlay.style.display = show ? 'flex' : 'none';
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %}

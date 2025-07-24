@@ -381,7 +381,7 @@ class Turma(models.Model):
             'manha': [
                 (time(7, 0), time(7, 50)),
                 (time(7, 50), time(8, 40)),
-                (time(8, 40), time(9, 30)),
+                (time(9, 0), time(9, 50)),
                 (time(9, 50), time(10, 40)),
                 (time(10, 40), time(11, 30)),
                 (time(11, 30), time(12, 20)),
@@ -389,13 +389,12 @@ class Turma(models.Model):
             'tarde': [
                 (time(13, 0), time(13, 50)),
                 (time(13, 50), time(14, 40)),
-                (time(14, 40), time(15, 30)),
-                (time(15, 50), time(16, 40)),
-                (time(16, 40), time(17, 30)),
-                (time(17, 30), time(18, 20)),
+                # Intervalo das 14:50 às 15:10
+                (time(15, 10), time(16, 0)),
+                (time(16, 0), time(16, 50)),
+                (time(16, 50), time(17, 40)),
             ],
             'noite': [
-                (time(18, 30), time(19, 20)),
                 (time(19, 20), time(20, 10)),
                 (time(20, 10), time(21, 0)),
                 (time(21, 10), time(22, 0)),

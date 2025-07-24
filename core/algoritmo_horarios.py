@@ -35,9 +35,10 @@ class GeradorHorariosRobusto:
         'tarde': [
             ('13:00', '13:50'),
             ('13:50', '14:40'),
-            ('14:50', '15:40'),
-            ('15:40', '16:30'),
-            ('16:30', '17:20')
+            # Intervalo das 14:50 às 15:10
+            ('15:10', '16:00'),
+            ('16:00', '16:50'),
+            ('16:50', '17:40')
         ],
         'noite': [
             ('19:20', '20:10'),
@@ -48,11 +49,11 @@ class GeradorHorariosRobusto:
     }
     
     DIAS_SEMANA = [
-        (0, 'segunda'),
-        (1, 'terca'),
-        (2, 'quarta'),
-        (3, 'quinta'),
-        (4, 'sexta')
+        (1, 'segunda'),
+        (2, 'terca'),
+        (3, 'quarta'),
+        (4, 'quinta'),
+        (5, 'sexta')
     ]
     
     def __init__(self):
@@ -272,18 +273,19 @@ class GeradorHorariosRobusto:
     ) -> bool:
         """
         Encontra um slot válido para uma aula específica.
+        Prioriza agrupamento de aulas do mesmo professor/turma.
         """
         # Gerar todos os slots possíveis
         slots_possiveis = self._gerar_slots_possiveis(aula['turma'])
-        
-        # Embaralhar para variar tentativas
-        random.shuffle(slots_possiveis)
         
         # Tentar cada professor possível
         professores = aula['professores_possiveis'].copy()
         random.shuffle(professores)
         
         for professor in professores:
+            # Avaliar e ordenar slots por score de agrupamento
+            slots_com_score = []
+            
             for slot in slots_possiveis:
                 dia, turno, horario_inicio, horario_fim = slot
                 
@@ -301,26 +303,189 @@ class GeradorHorariosRobusto:
                     evitar_janelas,
                     flexibilidade
                 ):
-                    # Encontrar sala disponível
-                    sala = self._encontrar_sala_disponivel(
+                    # Calcular score de agrupamento
+                    score = self._calcular_score_agrupamento(
+                        professor,
                         aula['turma'],
                         dia,
+                        turno,
                         horario_inicio,
                         horario_fim,
                         aulas_alocadas
                     )
                     
-                    if sala:
-                        # Alocar a aula
-                        aula['professor'] = professor
-                        aula['dia'] = dia
-                        aula['turno'] = turno
-                        aula['horario_inicio'] = horario_inicio
-                        aula['horario_fim'] = horario_fim
-                        aula['sala'] = sala
-                        return True
+                    slots_com_score.append((slot, score))
+            
+            # Ordenar por score (maior score = melhor agrupamento)
+            slots_com_score.sort(key=lambda x: x[1], reverse=True)
+            
+            # Tentar slots em ordem de score
+            for slot, score in slots_com_score:
+                dia, turno, horario_inicio, horario_fim = slot
+                
+                # Encontrar sala disponível
+                sala = self._encontrar_sala_disponivel(
+                    aula['turma'],
+                    dia,
+                    horario_inicio,
+                    horario_fim,
+                    aulas_alocadas
+                )
+                
+                if sala:
+                    # Alocar a aula
+                    aula['professor'] = professor
+                    aula['dia'] = dia
+                    aula['turno'] = turno
+                    aula['horario_inicio'] = horario_inicio
+                    aula['horario_fim'] = horario_fim
+                    aula['sala'] = sala
+                    return True
         
         return False
+    
+    def _calcular_score_agrupamento(
+        self,
+        professor: Professor,
+        turma: Turma,
+        dia: int,
+        turno: str,
+        horario_inicio: str,
+        horario_fim: str,
+        aulas_alocadas: List[Dict]
+    ) -> float:
+        """
+        Calcula score de agrupamento para favorecer aulas consecutivas.
+        """
+        score = 0.0
+        
+        # Bonus por aulas consecutivas do mesmo professor no mesmo dia
+        for aula_alocada in aulas_alocadas:
+            if (aula_alocada['professor'] == professor and 
+                aula_alocada['dia'] == dia):
+                
+                # Verificar se são horários consecutivos
+                if self._horarios_consecutivos(
+                    aula_alocada['horario_inicio'], aula_alocada['horario_fim'],
+                    horario_inicio, horario_fim
+                ):
+                    score += 10.0  # Bonus alto para consecutividade
+                
+                # Bonus menor para aulas no mesmo turno
+                if aula_alocada['turno'] == turno:
+                    score += 5.0
+        
+        # Bonus por aulas consecutivas da mesma turma
+        for aula_alocada in aulas_alocadas:
+            if (aula_alocada['turma'] == turma and 
+                aula_alocada['dia'] == dia):
+                
+                # Verificar se são horários consecutivos
+                if self._horarios_consecutivos(
+                    aula_alocada['horario_inicio'], aula_alocada['horario_fim'],
+                    horario_inicio, horario_fim
+                ):
+                    score += 8.0  # Bonus para consecutividade da turma
+                
+                # Bonus menor para aulas no mesmo turno
+                if aula_alocada['turno'] == turno:
+                    score += 3.0
+        
+        # Penalidade por criar janelas (gaps entre aulas)
+        score -= self._calcular_penalidade_janelas(
+            professor, turma, dia, turno, horario_inicio, horario_fim, aulas_alocadas
+        )
+        
+        # Bonus por preferências do professor
+        if hasattr(professor, 'get_preferencia_score'):
+            pref_score = professor.get_preferencia_score(dia_semana=dia, turno=turno)
+            score += (pref_score - 3) * 2  # Normalizar e amplificar
+        
+        return score
+    
+    def _horarios_consecutivos(self, inicio1: str, fim1: str, inicio2: str, fim2: str) -> bool:
+        """
+        Verifica se dois horários são consecutivos (um termina quando o outro começa).
+        """
+        try:
+            h1_fim = datetime.strptime(fim1, '%H:%M').time()
+            h2_inicio = datetime.strptime(inicio2, '%H:%M').time()
+            h2_fim = datetime.strptime(fim2, '%H:%M').time()
+            h1_inicio = datetime.strptime(inicio1, '%H:%M').time()
+            
+            # Verificar se h1 termina quando h2 começa, ou vice-versa
+            return h1_fim == h2_inicio or h2_fim == h1_inicio
+        except:
+            return False
+    
+    def _calcular_penalidade_janelas(
+        self,
+        professor: Professor,
+        turma: Turma,
+        dia: int,
+        turno: str,
+        horario_inicio: str,
+        horario_fim: str,
+        aulas_alocadas: List[Dict]
+    ) -> float:
+        """
+        Calcula penalidade por criar janelas (gaps) entre aulas.
+        """
+        penalidade = 0.0
+        
+        # Buscar aulas do professor no mesmo dia
+        aulas_professor_dia = [
+            aula for aula in aulas_alocadas
+            if aula['professor'] == professor and aula['dia'] == dia
+        ]
+        
+        # Buscar aulas da turma no mesmo dia
+        aulas_turma_dia = [
+            aula for aula in aulas_alocadas
+            if aula['turma'] == turma and aula['dia'] == dia
+        ]
+        
+        try:
+            inicio_novo = datetime.strptime(horario_inicio, '%H:%M').time()
+            fim_novo = datetime.strptime(horario_fim, '%H:%M').time()
+            
+            # Verificar janelas com aulas do professor
+            for aula in aulas_professor_dia:
+                inicio_existente = datetime.strptime(aula['horario_inicio'], '%H:%M').time()
+                fim_existente = datetime.strptime(aula['horario_fim'], '%H:%M').time()
+                
+                # Calcular gap entre aulas
+                if fim_existente < inicio_novo:
+                    gap_minutes = (datetime.combine(date.today(), inicio_novo) - 
+                                 datetime.combine(date.today(), fim_existente)).seconds / 60
+                    if 0 < gap_minutes <= 120:  # Gap de até 2 horas
+                        penalidade += gap_minutes / 10  # Penalidade proporcional
+                elif fim_novo < inicio_existente:
+                    gap_minutes = (datetime.combine(date.today(), inicio_existente) - 
+                                 datetime.combine(date.today(), fim_novo)).seconds / 60
+                    if 0 < gap_minutes <= 120:
+                        penalidade += gap_minutes / 10
+            
+            # Verificar janelas com aulas da turma (penalidade menor)
+            for aula in aulas_turma_dia:
+                inicio_existente = datetime.strptime(aula['horario_inicio'], '%H:%M').time()
+                fim_existente = datetime.strptime(aula['horario_fim'], '%H:%M').time()
+                
+                if fim_existente < inicio_novo:
+                    gap_minutes = (datetime.combine(date.today(), inicio_novo) - 
+                                 datetime.combine(date.today(), fim_existente)).seconds / 60
+                    if 0 < gap_minutes <= 120:
+                        penalidade += gap_minutes / 20  # Penalidade menor para turma
+                elif fim_novo < inicio_existente:
+                    gap_minutes = (datetime.combine(date.today(), inicio_existente) - 
+                                 datetime.combine(date.today(), fim_novo)).seconds / 60
+                    if 0 < gap_minutes <= 120:
+                        penalidade += gap_minutes / 20
+        
+        except:
+            pass  # Em caso de erro, não aplicar penalidade
+        
+        return penalidade
     
     def _gerar_slots_possiveis(self, turma: Turma) -> List[Tuple]:
         """Gera todos os slots possíveis baseado no turno da turma."""
@@ -432,9 +597,9 @@ class GeradorHorariosRobusto:
         # Se há preferências específicas para este dia, verificar disponibilidade
         if preferencias.exists():
             for pref in preferencias:
-                # Se o turno não está especificado na preferência, se aplica a todos os turnos
+                # Se o turno não está especificado na preferência (None ou string vazia), se aplica a todos os turnos
                 # Se o turno está especificado, só se aplica a esse turno
-                if pref.turno is None or pref.turno == turno:
+                if pref.turno is None or pref.turno == '' or pref.turno == turno:
                     # Se a disciplina não está especificada, se aplica a todas as disciplinas
                     # Se a disciplina está especificada, só se aplica a essa disciplina
                     if pref.disciplina is None or pref.disciplina == disciplina:

@@ -69,33 +69,42 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="respeitarPreferencias" checked>
-                                        <label class="form-check-label" for="respeitarPreferencias">
+                                        {{ form.respeitar_preferencias }}
+                                        <label class="form-check-label" for="{{ form.respeitar_preferencias.id_for_label }}">
                                             Respeitar preferências dos professores
                                         </label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="evitarJanelas" checked>
-                                        <label class="form-check-label" for="evitarJanelas">
+                                        {{ form.evitar_janelas }}
+                                        <label class="form-check-label" for="{{ form.evitar_janelas.id_for_label }}">
                                             Evitar janelas no horário
                                         </label>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="distribuirDias" checked>
-                                        <label class="form-check-label" for="distribuirDias">
+                                        {{ form.distribuir_dias }}
+                                        <label class="form-check-label" for="{{ form.distribuir_dias.id_for_label }}">
                                             Distribuir aulas ao longo da semana
                                         </label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="limparAnteriores">
-                                        <label class="form-check-label" for="limparAnteriores">
+                                        {{ form.limpar_anteriores }}
+                                        <label class="form-check-label" for="{{ form.limpar_anteriores.id_for_label }}">
                                             Limpar horários existentes
                                         </label>
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h6><i class="bi bi-list-check me-2"></i>Turmas (Opcional)</h6>
+                            <p class="text-muted small mb-2">Deixe vazio para gerar horários para todas as turmas ativas</p>
+                            {{ form.turmas_selecionadas }}
+                            {% if form.turmas_selecionadas.help_text %}
+                                <div class="form-text">{{ form.turmas_selecionadas.help_text }}</div>
+                            {% endif %}
                         </div>
                         
                         <hr>

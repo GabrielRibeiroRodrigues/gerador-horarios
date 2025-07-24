@@ -46,6 +46,7 @@ urlpatterns = [
     
     # URLs para Horários
     path('horarios/', views.HorarioListView.as_view(), name='horario_list'),
+    path('horarios/grade/', views.horario_grade_view, name='horario_grade'),
     path('horarios/novo/', views.HorarioCreateView.as_view(), name='horario_create'),
     path('horarios/<int:pk>/editar/', views.HorarioUpdateView.as_view(), name='horario_update'),
     path('horarios/<int:pk>/deletar/', views.HorarioDeleteView.as_view(), name='horario_delete'),
@@ -68,5 +69,8 @@ urlpatterns = [
     # URLs especiais para bloqueios
     path('professor/<int:professor_id>/bloqueios/calendario/', views.professor_bloqueios_calendario, name='professor_bloqueios_calendario'),
     path('ajax/verificar-disponibilidade/', views.verificar_disponibilidade_professor, name='verificar_disponibilidade_professor'),
+    
+    # URLs AJAX para operações com horários
+    path('ajax/mover-horario/', views.mover_horario, name='mover_horario'),
 ]
 

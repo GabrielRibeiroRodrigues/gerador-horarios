@@ -982,3 +982,171 @@ def verificar_disponibilidade_professor(request):
     
     return JsonResponse({'erro': 'Método não permitido'}, status=405)
 
+
+def mover_horario(request):
+    """
+    View AJAX para mover um horário para uma nova posição.
+    
+    Permite arrastar e soltar horários na interface, alterando
+    dia da semana e/ou horário do mesmo.
+    """
+    if request.method == 'POST':
+        try:
+            import json
+            data = json.loads(request.body)
+            
+            horario_id = data.get('horario_id')
+            novo_dia = data.get('novo_dia')
+            novo_inicio = data.get('novo_inicio')
+            novo_fim = data.get('novo_fim')
+            
+            # Validar dados
+            if not all([horario_id, novo_dia, novo_inicio, novo_fim]):
+                return JsonResponse({
+                    'sucesso': False,
+                    'erro': 'Dados incompletos'
+                }, status=400)
+            
+            # Buscar horário
+            horario = get_object_or_404(Horario, id=horario_id)
+            
+            # Converter dados
+            from datetime import datetime
+            novo_dia = int(novo_dia)
+            novo_inicio_time = datetime.strptime(novo_inicio, '%H:%M').time()
+            novo_fim_time = datetime.strptime(novo_fim, '%H:%M').time()
+            
+            # Verificar se a nova posição já está ocupada (conflito de horário exato)
+            conflitos_exatos = Horario.objects.filter(
+                dia_semana=novo_dia,
+                horario_inicio=novo_inicio_time,
+                horario_fim=novo_fim_time
+            ).exclude(id=horario_id)
+            
+            # Verificar conflitos de professor no mesmo horário
+            conflitos_professor = conflitos_exatos.filter(professor=horario.professor)
+            if conflitos_professor.exists():
+                return JsonResponse({
+                    'sucesso': False,
+                    'erro': f'Professor {horario.professor.nome_completo} já tem aula nesse horário'
+                }, status=400)
+            
+            # Verificar conflitos de sala no mesmo horário
+            conflitos_sala = conflitos_exatos.filter(sala=horario.sala)
+            if conflitos_sala.exists():
+                return JsonResponse({
+                    'sucesso': False,
+                    'erro': f'Sala {horario.sala.nome_numero} já está ocupada nesse horário'
+                }, status=400)
+            
+            # Verificar conflitos de turma no mesmo horário
+            conflitos_turma = conflitos_exatos.filter(turma=horario.turma)
+            if conflitos_turma.exists():
+                return JsonResponse({
+                    'sucesso': False,
+                    'erro': f'Turma {horario.turma.nome_codigo} já tem aula nesse horário'
+                }, status=400)
+            
+            # Verificar disponibilidade do professor
+            from .algoritmo_horarios import GeradorHorariosRobusto
+            gerador = GeradorHorariosRobusto()
+            
+            # Determinar turno baseado no horário
+            turno = 'manha' if novo_inicio_time.hour < 12 else 'tarde'
+            
+            if not gerador._professor_disponivel(horario.professor, novo_dia, turno, horario.disciplina):
+                return JsonResponse({
+                    'sucesso': False,
+                    'erro': f'Professor {horario.professor.nome_completo} não está disponível neste dia/turno'
+                }, status=400)
+            
+            # Atualizar horário
+            horario.dia_semana = novo_dia
+            horario.horario_inicio = novo_inicio_time
+            horario.horario_fim = novo_fim_time
+            horario.turno = turno
+            horario.save()
+            
+            return JsonResponse({
+                'sucesso': True,
+                'mensagem': f'Horário movido com sucesso para {horario.get_dia_semana_display()} às {novo_inicio}'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'sucesso': False,
+                'erro': f'Erro ao mover horário: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({'erro': 'Método não permitido'}, status=405)
+
+
+def horario_grade_view(request):
+    """
+    View para exibir horários em formato de grade com drag & drop.
+    
+    Mostra uma grade semanal onde os horários podem ser movidos
+    através de arrastar e soltar.
+    """
+    import json
+    
+    # Buscar todos os horários
+    horarios = Horario.objects.all().select_related(
+        'turma', 'disciplina', 'professor', 'sala'
+    ).order_by('dia_semana', 'horario_inicio')
+    
+    # Definir slots de horário disponíveis
+    slots_horario = [
+        ('07:00', '07:50'),
+        ('07:50', '08:40'),
+        ('08:40', '09:30'),
+        ('09:50', '10:40'),  # Intervalo 09:30-09:50
+        ('10:40', '11:30'),
+        ('11:30', '12:20'),
+        ('13:00', '13:50'),  # Tarde
+        ('13:50', '14:40'),
+        ('15:10', '16:00'),  # Intervalo 14:50-15:10
+        ('16:00', '16:50'),
+        ('16:50', '17:40'),
+    ]
+    
+    # Dias da semana
+    dias_semana = [
+        (1, 'Segunda'),
+        (2, 'Terça'),
+        (3, 'Quarta'),
+        (4, 'Quinta'),
+        (5, 'Sexta'),
+    ]
+    
+    # Serializar horários para JSON
+    horarios_json = []
+    for horario in horarios:
+        horarios_json.append({
+            'id': horario.id,
+            'dia_semana': horario.dia_semana,
+            'horario_inicio': horario.horario_inicio.strftime('%H:%M'),
+            'horario_fim': horario.horario_fim.strftime('%H:%M'),
+            'professor': {
+                'id': horario.professor.id,
+                'nome': horario.professor.nome_completo
+            },
+            'disciplina': horario.disciplina.nome,
+            'turma': {
+                'id': horario.turma.id,
+                'codigo': horario.turma.nome_codigo
+            },
+            'sala': {
+                'id': horario.sala.id,
+                'numero': horario.sala.nome_numero
+            }
+        })
+    
+    context = {
+        'slots_horario': slots_horario,
+        'dias_semana': dias_semana,
+        'horarios_json': json.dumps(horarios_json),
+    }
+    
+    return render(request, 'core/horario_grade.html', context)
+
