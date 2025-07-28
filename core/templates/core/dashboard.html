@@ -1,0 +1,345 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard Analítico - Sistema de Horários{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css" rel="stylesheet">
+<style>
+.dashboard-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.stat-card.warning {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.stat-card.success {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.stat-card.info {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.status-alta { background-color: #dc3545; color: white; }
+.status-media { background-color: #ffc107; color: black; }
+.status-baixa { background-color: #28a745; color: white; }
+.status-vazia { background-color: #6c757d; color: white; }
+.status-completo { background-color: #28a745; color: white; }
+.status-incompleto { background-color: #dc3545; color: white; }
+.status-excesso { background-color: #ff6b35; color: white; }
+
+.urgencia-alta { border-left: 4px solid #dc3545; }
+.urgencia-media { border-left: 4px solid #ffc107; }
+.urgencia-baixa { border-left: 4px solid #28a745; }
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin: 1rem 0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-chart-line"></i> Dashboard Analítico</h1>
+        <div class="btn-group">
+            <a href="{% url 'core:relatorio_carga_horaria' %}" class="btn btn-outline-primary">
+                <i class="fas fa-file-alt"></i> Relatório de Carga
+            </a>
+            <a href="{% url 'core:verificar_integridade' %}" class="btn btn-outline-warning">
+                <i class="fas fa-shield-alt"></i> Verificar Integridade
+            </a>
+        </div>
+    </div>
+
+    <!-- Estatísticas Gerais -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="stat-card">
+                <i class="fas fa-book fa-2x mb-2"></i>
+                <h3>{{ estatisticas_gerais.totais.horarios }}</h3>
+                <p class="mb-0">Horários</p>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card success">
+                <i class="fas fa-chalkboard-teacher fa-2x mb-2"></i>
+                <h3>{{ estatisticas_gerais.totais.professores }}</h3>
+                <p class="mb-0">Professores</p>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card info">
+                <i class="fas fa-door-open fa-2x mb-2"></i>
+                <h3>{{ estatisticas_gerais.totais.salas }}</h3>
+                <p class="mb-0">Salas</p>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card">
+                <i class="fas fa-users fa-2x mb-2"></i>
+                <h3>{{ estatisticas_gerais.totais.turmas }}</h3>
+                <p class="mb-0">Turmas</p>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card {% if estatisticas_gerais.alertas.notificacoes_nao_lidas > 0 %}warning{% endif %}">
+                <i class="fas fa-bell fa-2x mb-2"></i>
+                <h3>{{ estatisticas_gerais.alertas.notificacoes_nao_lidas }}</h3>
+                <p class="mb-0">Notificações</p>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card {% if estatisticas_gerais.alertas.conflitos_criticos > 0 %}warning{% endif %}">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <h3>{{ estatisticas_gerais.alertas.conflitos_criticos }}</h3>
+                <p class="mb-0">Conflitos</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos e Análises -->
+    <div class="row">
+        <!-- Distribuição por Turnos -->
+        <div class="col-md-6">
+            <div class="dashboard-card">
+                <h5><i class="fas fa-clock"></i> Distribuição por Turnos</h5>
+                <div class="chart-container">
+                    <canvas id="turnosChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance do Sistema -->
+        <div class="col-md-6">
+            <div class="dashboard-card">
+                <h5><i class="fas fa-tachometer-alt"></i> Métricas de Performance</h5>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <h4 class="text-primary">{{ metricas_performance.taxa_utilizacao }}%</h4>
+                            <small class="text-muted">Taxa de Utilização</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <h4 class="text-info">{{ metricas_performance.atividades_semana }}</h4>
+                            <small class="text-muted">Atividades na Semana</small>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <h4 class="text-warning">{{ metricas_performance.conflitos_novos }}</h4>
+                            <small class="text-muted">Novos Conflitos</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <h4 class="text-success">{{ metricas_performance.conflitos_resolvidos }}</h4>
+                            <small class="text-muted">Conflitos Resolvidos</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ocupação de Salas -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="dashboard-card">
+                <h5><i class="fas fa-door-open"></i> Ocupação de Salas (Top 10)</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Sala</th>
+                                <th>Horários</th>
+                                <th>Taxa</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sala_data in ocupacao_salas %}
+                            <tr>
+                                <td>{{ sala_data.sala.nome_numero }}</td>
+                                <td>{{ sala_data.total_horarios }}</td>
+                                <td>{{ sala_data.taxa_ocupacao }}%</td>
+                                <td>
+                                    <span class="status-badge status-{{ sala_data.status }}">
+                                        {{ sala_data.status_label }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Distribuição de Professores -->
+        <div class="col-md-6">
+            <div class="dashboard-card">
+                <h5><i class="fas fa-chalkboard-teacher"></i> Carga Horária Professores (Top 10)</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Professor</th>
+                                <th>Aulas</th>
+                                <th>Turmas</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for prof_data in distribuicao_professores %}
+                            <tr>
+                                <td>{{ prof_data.professor.nome_completo|truncatechars:20 }}</td>
+                                <td>{{ prof_data.total_aulas }}</td>
+                                <td>{{ prof_data.total_turmas }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ prof_data.status }}">
+                                        {{ prof_data.status_label }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Eventos Próximos e Auditoria -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="dashboard-card">
+                <h5><i class="fas fa-calendar-alt"></i> Eventos Próximos</h5>
+                {% if eventos_proximos %}
+                    <div class="list-group list-group-flush">
+                        {% for evento_data in eventos_proximos %}
+                        <div class="list-group-item urgencia-{{ evento_data.urgencia }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ evento_data.evento.nome }}</h6>
+                                    <small class="text-muted">{{ evento_data.evento.data_inicio|date:"d/m/Y" }}</small>
+                                </div>
+                                <span class="badge badge-pill badge-primary">
+                                    {{ evento_data.dias_restantes }} dias
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">Nenhum evento próximo.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="dashboard-card">
+                <h5><i class="fas fa-history"></i> Atividades Recentes</h5>
+                {% if auditoria_recente %}
+                    <div class="list-group list-group-flush">
+                        {% for acao in auditoria_recente|slice:":10" %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ acao.get_acao_display }}</h6>
+                                    <small class="text-muted">
+                                        {% if acao.horario %}{{ acao.horario.turma }} - {{ acao.horario.disciplina }}{% endif %}
+                                    </small>
+                                </div>
+                                <small class="text-muted">{{ acao.timestamp|timesince }} atrás</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">Nenhuma atividade recente.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+// Gráfico de Distribuição por Turnos
+const turnosCtx = document.getElementById('turnosChart').getContext('2d');
+const turnosChart = new Chart(turnosCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Manhã', 'Tarde', 'Noite'],
+        datasets: [{
+            data: [
+                {{ estatisticas_gerais.distribuicao_turnos.manha }},
+                {{ estatisticas_gerais.distribuicao_turnos.tarde }},
+                {{ estatisticas_gerais.distribuicao_turnos.noite }}
+            ],
+            backgroundColor: [
+                '#36A2EB',
+                '#FFCE56',
+                '#FF6384'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Atualizar notificações a cada 30 segundos
+setInterval(function() {
+    fetch('{% url "core:api_notificacoes" %}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.total > 0) {
+                // Atualizar contador de notificações
+                document.querySelector('.stat-card .fa-bell').parentElement.classList.add('warning');
+            }
+        })
+        .catch(error => console.log('Erro ao buscar notificações:', error));
+}, 30000);
+</script>
+{% endblock %}

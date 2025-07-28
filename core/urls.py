@@ -10,6 +10,15 @@ urlpatterns = [
     # Página inicial
     path('', views.home, name='home'),
     
+    # Dashboard analítico
+    path('dashboard/', views.dashboard_analitico, name='dashboard_analitico'),
+    
+    # APIs e funcionalidades especiais
+    path('notificacoes/', views.notificacoes_view, name='notificacoes'),
+    path('api/notificacoes/', views.api_notificacoes, name='api_notificacoes'),
+    path('relatorio/carga-horaria/', views.relatorio_carga_horaria, name='relatorio_carga_horaria'),
+    path('sistema/verificar-integridade/', views.verificar_integridade_dados, name='verificar_integridade'),
+    
     # URLs para Disciplinas
     path('disciplinas/', views.DisciplinaListView.as_view(), name='disciplina_list'),
     path('disciplinas/<int:pk>/', views.DisciplinaDetailView.as_view(), name='disciplina_detail'),

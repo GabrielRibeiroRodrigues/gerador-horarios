@@ -1,0 +1,413 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Relatório de Carga Horária - Sistema de Horários{% endblock %}
+
+{% block extra_css %}
+<style>
+.relatorio-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    margin: -1rem -1rem 2rem -1rem;
+    border-radius: 0 0 8px 8px;
+}
+
+.carga-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid #007bff;
+}
+
+.carga-card.professor { border-left-color: #28a745; }
+.carga-card.sala { border-left-color: #ffc107; }
+.carga-card.turma { border-left-color: #dc3545; }
+.carga-card.disciplina { border-left-color: #6f42c1; }
+
+.progress-carga {
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    background-color: #e9ecef;
+    margin: 0.5rem 0;
+}
+
+.progress-bar-carga {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.status-completo { background-color: #28a745; }
+.status-incompleto { background-color: #dc3545; }
+.status-excesso { background-color: #ff6b35; }
+.status-parcial { background-color: #ffc107; }
+
+.filter-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.export-buttons {
+    margin-bottom: 1rem;
+}
+
+.stat-summary {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.stat-item {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="relatorio-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-chart-bar"></i> Relatório de Carga Horária</h1>
+                <p class="mb-0">Análise detalhada da distribuição de horários</p>
+            </div>
+            <div class="text-right">
+                <small>Gerado em: {{ data_geracao|date:"d/m/Y H:i" }}</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filter-card">
+        <form method="get" class="row align-items-end">
+            <div class="col-md-3">
+                <label for="periodo" class="form-label">Período Letivo</label>
+                <select name="periodo" id="periodo" class="form-select">
+                    <option value="">Todos os Períodos</option>
+                    {% for periodo in periodos %}
+                    <option value="{{ periodo.id }}" {% if request.GET.periodo == periodo.id|slugify %}selected{% endif %}>
+                        {{ periodo.nome }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="turno" class="form-label">Turno</label>
+                <select name="turno" id="turno" class="form-select">
+                    <option value="">Todos os Turnos</option>
+                    <option value="M" {% if request.GET.turno == 'M' %}selected{% endif %}>Manhã</option>
+                    <option value="T" {% if request.GET.turno == 'T' %}selected{% endif %}>Tarde</option>
+                    <option value="N" {% if request.GET.turno == 'N' %}selected{% endif %}>Noite</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="professor" class="form-label">Professor</label>
+                <select name="professor" id="professor" class="form-select">
+                    <option value="">Todos os Professores</option>
+                    {% for prof in professores %}
+                    <option value="{{ prof.id }}" {% if request.GET.professor == prof.id|slugify %}selected{% endif %}>
+                        {{ prof.nome_completo }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Filtrar
+                </button>
+                <a href="{% url 'core:relatorio_carga_horaria' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Limpar
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Botões de Exportação -->
+    <div class="export-buttons text-end">
+        <div class="btn-group">
+            <button onclick="window.print()" class="btn btn-outline-primary">
+                <i class="fas fa-print"></i> Imprimir
+            </button>
+            <a href="?{{ request.GET.urlencode }}&formato=pdf" class="btn btn-outline-danger">
+                <i class="fas fa-file-pdf"></i> PDF
+            </a>
+            <a href="?{{ request.GET.urlencode }}&formato=excel" class="btn btn-outline-success">
+                <i class="fas fa-file-excel"></i> Excel
+            </a>
+        </div>
+    </div>
+
+    <!-- Resumo Estatístico -->
+    <div class="carga-card">
+        <h5><i class="fas fa-chart-pie"></i> Resumo Geral</h5>
+        <div class="stat-summary">
+            <div class="stat-item">
+                <div class="stat-value">{{ relatorio.resumo.total_professores }}</div>
+                <div class="stat-label">Professores</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ relatorio.resumo.total_horarios }}</div>
+                <div class="stat-label">Horários</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ relatorio.resumo.carga_total }}</div>
+                <div class="stat-label">Horas/Aula Total</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ relatorio.resumo.media_carga }}h</div>
+                <div class="stat-label">Média por Professor</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ relatorio.resumo.taxa_ocupacao }}%</div>
+                <div class="stat-label">Taxa de Ocupação</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Carga por Professor -->
+    <div class="carga-card professor">
+        <h5><i class="fas fa-chalkboard-teacher"></i> Carga Horária por Professor</h5>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Professor</th>
+                        <th class="text-center">Horários</th>
+                        <th class="text-center">Turmas</th>
+                        <th class="text-center">Disciplinas</th>
+                        <th class="text-center">Carga Semanal</th>
+                        <th class="text-center">Status</th>
+                        <th>Distribuição</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prof_data in relatorio.professores %}
+                    <tr>
+                        <td>
+                            <strong>{{ prof_data.professor.nome_completo }}</strong>
+                            <br>
+                            <small class="text-muted">{{ prof_data.professor.email }}</small>
+                        </td>
+                        <td class="text-center">{{ prof_data.total_horarios }}</td>
+                        <td class="text-center">{{ prof_data.total_turmas }}</td>
+                        <td class="text-center">{{ prof_data.total_disciplinas }}</td>
+                        <td class="text-center">
+                            <strong>{{ prof_data.carga_semanal }}h</strong>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-{{ prof_data.status_color }}">
+                                {{ prof_data.status_label }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="progress-carga">
+                                <div class="progress-bar-carga status-{{ prof_data.status }}" 
+                                     style="width: {{ prof_data.percentual_carga }}%"
+                                     title="{{ prof_data.carga_semanal }}h de {{ prof_data.carga_maxima }}h">
+                                </div>
+                            </div>
+                            <small class="text-muted">
+                                {{ prof_data.percentual_carga }}% da carga máxima
+                            </small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Ocupação por Sala -->
+    <div class="carga-card sala">
+        <h5><i class="fas fa-door-open"></i> Ocupação de Salas</h5>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Sala</th>
+                        <th class="text-center">Capacidade</th>
+                        <th class="text-center">Horários</th>
+                        <th class="text-center">Turmas</th>
+                        <th class="text-center">Taxa Ocupação</th>
+                        <th>Distribuição Semanal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sala_data in relatorio.salas %}
+                    <tr>
+                        <td>
+                            <strong>{{ sala_data.sala.nome_numero }}</strong>
+                            <br>
+                            <small class="text-muted">{{ sala_data.sala.get_tipo_display }}</small>
+                        </td>
+                        <td class="text-center">{{ sala_data.sala.capacidade }}</td>
+                        <td class="text-center">{{ sala_data.total_horarios }}</td>
+                        <td class="text-center">{{ sala_data.total_turmas }}</td>
+                        <td class="text-center">
+                            <strong>{{ sala_data.taxa_ocupacao }}%</strong>
+                        </td>
+                        <td>
+                            <div class="progress-carga">
+                                <div class="progress-bar-carga status-{{ sala_data.status }}" 
+                                     style="width: {{ sala_data.taxa_ocupacao }}%"
+                                     title="{{ sala_data.total_horarios }} horários">
+                                </div>
+                            </div>
+                            <small class="text-muted">
+                                {{ sala_data.horas_utilizadas }}h de {{ sala_data.horas_disponiveis }}h
+                            </small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Distribuição por Turma -->
+    <div class="carga-card turma">
+        <h5><i class="fas fa-users"></i> Distribuição por Turma</h5>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Turma</th>
+                        <th class="text-center">Disciplinas</th>
+                        <th class="text-center">Professores</th>
+                        <th class="text-center">Carga Semanal</th>
+                        <th class="text-center">Completude</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for turma_data in relatorio.turmas %}
+                    <tr>
+                        <td>
+                            <strong>{{ turma_data.turma.nome }}</strong>
+                            <br>
+                            <small class="text-muted">{{ turma_data.turma.get_turno_display }}</small>
+                        </td>
+                        <td class="text-center">{{ turma_data.total_disciplinas }}</td>
+                        <td class="text-center">{{ turma_data.total_professores }}</td>
+                        <td class="text-center">
+                            <strong>{{ turma_data.carga_semanal }}h</strong>
+                        </td>
+                        <td class="text-center">{{ turma_data.percentual_completude }}%</td>
+                        <td>
+                            <span class="badge bg-{{ turma_data.status_color }}">
+                                {{ turma_data.status_label }}
+                            </span>
+                            {% if turma_data.conflitos %}
+                            <br>
+                            <small class="text-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                {{ turma_data.conflitos }} conflito{{ turma_data.conflitos|pluralize }}
+                            </small>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Análise por Disciplina -->
+    <div class="carga-card disciplina">
+        <h5><i class="fas fa-book"></i> Análise por Disciplina</h5>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Disciplina</th>
+                        <th class="text-center">Professores</th>
+                        <th class="text-center">Turmas</th>
+                        <th class="text-center">Horários</th>
+                        <th class="text-center">Carga Total</th>
+                        <th>Distribuição</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for disc_data in relatorio.disciplinas %}
+                    <tr>
+                        <td>
+                            <strong>{{ disc_data.disciplina.nome }}</strong>
+                            <br>
+                            <small class="text-muted">{{ disc_data.disciplina.codigo }}</small>
+                        </td>
+                        <td class="text-center">{{ disc_data.total_professores }}</td>
+                        <td class="text-center">{{ disc_data.total_turmas }}</td>
+                        <td class="text-center">{{ disc_data.total_horarios }}</td>
+                        <td class="text-center">
+                            <strong>{{ disc_data.carga_total }}h</strong>
+                        </td>
+                        <td>
+                            <div class="d-flex justify-content-between">
+                                <span class="badge bg-primary">M: {{ disc_data.distribuicao.manha }}</span>
+                                <span class="badge bg-warning">T: {{ disc_data.distribuicao.tarde }}</span>
+                                <span class="badge bg-dark">N: {{ disc_data.distribuicao.noite }}</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Rodapé do Relatório -->
+    <div class="text-center text-muted mt-4">
+        <small>
+            Relatório gerado automaticamente pelo Sistema de Horários Escolares
+            <br>
+            Data: {{ data_geracao|date:"d/m/Y H:i:s" }} | 
+            Usuário: {{ user.get_full_name|default:user.username }}
+        </small>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Melhorar a experiência de impressão
+window.addEventListener('beforeprint', function() {
+    document.querySelectorAll('.btn, .filter-card').forEach(el => {
+        el.style.display = 'none';
+    });
+});
+
+window.addEventListener('afterprint', function() {
+    document.querySelectorAll('.btn, .filter-card').forEach(el => {
+        el.style.display = '';
+    });
+});
+
+// Tooltip para barras de progresso
+document.querySelectorAll('.progress-bar-carga').forEach(bar => {
+    bar.addEventListener('mouseenter', function() {
+        this.style.opacity = '0.8';
+    });
+    
+    bar.addEventListener('mouseleave', function() {
+        this.style.opacity = '1';
+    });
+});
+</script>
+{% endblock %}

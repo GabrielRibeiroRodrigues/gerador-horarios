@@ -49,11 +49,11 @@ class GeradorHorariosRobusto:
     }
     
     DIAS_SEMANA = [
-        (1, 'segunda'),
-        (2, 'terca'),
-        (3, 'quarta'),
-        (4, 'quinta'),
-        (5, 'sexta')
+        (0, 'segunda'),
+        (1, 'terca'),
+        (2, 'quarta'),
+        (3, 'quinta'),
+        (4, 'sexta')
     ]
     
     def __init__(self):

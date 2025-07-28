@@ -1,0 +1,521 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Verificação de Integridade - Sistema de Horários{% endblock %}
+
+{% block extra_css %}
+<style>
+.integridade-header {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    color: white;
+    padding: 2rem;
+    margin: -1rem -1rem 2rem -1rem;
+    border-radius: 0 0 8px 8px;
+}
+
+.status-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.status-card.critico { border-left: 4px solid #dc3545; }
+.status-card.aviso { border-left: 4px solid #ffc107; }
+.status-card.ok { border-left: 4px solid #28a745; }
+.status-card.info { border-left: 4px solid #17a2b8; }
+
+.status-icon {
+    font-size: 1.5rem;
+    margin-right: 0.5rem;
+}
+
+.status-critico { color: #dc3545; }
+.status-aviso { color: #ffc107; }
+.status-ok { color: #28a745; }
+.status-info { color: #17a2b8; }
+
+.problema-item {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.problema-item:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.badge-contador {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.8rem;
+}
+
+.fix-button {
+    margin-left: auto;
+}
+
+.resultado-resumo {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.resumo-item {
+    flex: 1;
+    padding: 1rem;
+}
+
+.resumo-valor {
+    font-size: 2.5rem;
+    font-weight: bold;
+    display: block;
+}
+
+.resumo-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: #f8f9fa;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="integridade-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-shield-alt"></i> Verificação de Integridade do Sistema</h1>
+                <p class="mb-0">Análise completa da consistência dos dados</p>
+            </div>
+            <div class="text-right">
+                <button onclick="location.reload()" class="btn btn-light">
+                    <i class="fas fa-sync-alt"></i> Reverificar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumo dos Resultados -->
+    <div class="status-card">
+        <div class="resultado-resumo">
+            <div class="resumo-item">
+                <span class="resumo-valor status-critico">{{ resultado.totais.criticos }}</span>
+                <span class="resumo-label">Problemas Críticos</span>
+            </div>
+            <div class="resumo-item">
+                <span class="resumo-valor status-aviso">{{ resultado.totais.avisos }}</span>
+                <span class="resumo-label">Avisos</span>
+            </div>
+            <div class="resumo-item">
+                <span class="resumo-valor status-ok">{{ resultado.totais.verificacoes_ok }}</span>
+                <span class="resumo-label">Verificações OK</span>
+            </div>
+            <div class="resumo-item">
+                <span class="resumo-valor status-info">{{ resultado.totais.total_verificacoes }}</span>
+                <span class="resumo-label">Total de Verificações</span>
+            </div>
+        </div>
+        
+        {% if resultado.status_geral == 'CRITICO' %}
+        <div class="alert alert-danger" role="alert">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Atenção!</strong> Foram detectados problemas críticos que podem afetar o funcionamento do sistema.
+        </div>
+        {% elif resultado.status_geral == 'AVISO' %}
+        <div class="alert alert-warning" role="alert">
+            <i class="fas fa-exclamation-circle"></i>
+            <strong>Aviso:</strong> Alguns problemas foram detectados e devem ser corrigidos.
+        </div>
+        {% else %}
+        <div class="alert alert-success" role="alert">
+            <i class="fas fa-check-circle"></i>
+            <strong>Excelente!</strong> Todos os testes de integridade passaram com sucesso.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Acordeão com Resultados Detalhados -->
+    <div class="accordion" id="integridadeAccordion">
+        
+        <!-- Conflitos de Horário -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="conflitosHeader">
+                <button class="accordion-button {% if not resultado.conflitos_horario %}collapsed{% endif %}" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#conflitosCollapse"
+                        aria-expanded="{% if resultado.conflitos_horario %}true{% else %}false{% endif %}" 
+                        aria-controls="conflitosCollapse">
+                    <i class="status-icon {% if resultado.conflitos_horario %}status-critico fas fa-exclamation-triangle{% else %}status-ok fas fa-check-circle{% endif %}"></i>
+                    Conflitos de Horário
+                    {% if resultado.conflitos_horario %}
+                    <span class="badge bg-danger badge-contador ms-2">{{ resultado.conflitos_horario|length }}</span>
+                    {% endif %}
+                </button>
+            </h2>
+            <div id="conflitosCollapse" 
+                 class="accordion-collapse collapse {% if resultado.conflitos_horario %}show{% endif %}" 
+                 aria-labelledby="conflitosHeader" 
+                 data-bs-parent="#integridadeAccordion">
+                <div class="accordion-body">
+                    {% if resultado.conflitos_horario %}
+                        {% for conflito in resultado.conflitos_horario %}
+                        <div class="problema-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ conflito.tipo_display }}</h6>
+                                <p class="mb-1">{{ conflito.descricao }}</p>
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar"></i> {{ conflito.horario1 }} ↔ {{ conflito.horario2 }}
+                                </small>
+                            </div>
+                            <div class="fix-button">
+                                <button class="btn btn-sm btn-outline-primary" 
+                                        onclick="resolverConflito('{{ conflito.id }}')">
+                                    <i class="fas fa-wrench"></i> Resolver
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-success mb-0">
+                            <i class="fas fa-check"></i> Nenhum conflito de horário detectado.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Inconsistências de Dados -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="inconsistenciasHeader">
+                <button class="accordion-button {% if not resultado.inconsistencias %}collapsed{% endif %}" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#inconsistenciasCollapse"
+                        aria-expanded="{% if resultado.inconsistencias %}true{% else %}false{% endif %}" 
+                        aria-controls="inconsistenciasCollapse">
+                    <i class="status-icon {% if resultado.inconsistencias %}status-aviso fas fa-exclamation-circle{% else %}status-ok fas fa-check-circle{% endif %}"></i>
+                    Inconsistências de Dados
+                    {% if resultado.inconsistencias %}
+                    <span class="badge bg-warning badge-contador ms-2">{{ resultado.inconsistencias|length }}</span>
+                    {% endif %}
+                </button>
+            </h2>
+            <div id="inconsistenciasCollapse" 
+                 class="accordion-collapse collapse {% if resultado.inconsistencias %}show{% endif %}" 
+                 aria-labelledby="inconsistenciasHeader" 
+                 data-bs-parent="#integridadeAccordion">
+                <div class="accordion-body">
+                    {% if resultado.inconsistencias %}
+                        {% for inconsistencia in resultado.inconsistencias %}
+                        <div class="problema-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ inconsistencia.tipo_display }}</h6>
+                                <p class="mb-1">{{ inconsistencia.descricao }}</p>
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle"></i> {{ inconsistencia.detalhes }}
+                                </small>
+                            </div>
+                            <div class="fix-button">
+                                <button class="btn btn-sm btn-outline-warning" 
+                                        onclick="corrigirInconsistencia('{{ inconsistencia.id }}')">
+                                    <i class="fas fa-edit"></i> Corrigir
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-success mb-0">
+                            <i class="fas fa-check"></i> Nenhuma inconsistência de dados detectada.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Validações de Negócio -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="validacoesHeader">
+                <button class="accordion-button {% if not resultado.validacoes_negocio %}collapsed{% endif %}" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#validacoesCollapse"
+                        aria-expanded="{% if resultado.validacoes_negocio %}true{% else %}false{% endif %}" 
+                        aria-controls="validacoesCollapse">
+                    <i class="status-icon {% if resultado.validacoes_negocio %}status-aviso fas fa-exclamation-circle{% else %}status-ok fas fa-check-circle{% endif %}"></i>
+                    Validações de Regras de Negócio
+                    {% if resultado.validacoes_negocio %}
+                    <span class="badge bg-warning badge-contador ms-2">{{ resultado.validacoes_negocio|length }}</span>
+                    {% endif %}
+                </button>
+            </h2>
+            <div id="validacoesCollapse" 
+                 class="accordion-collapse collapse {% if resultado.validacoes_negocio %}show{% endif %}" 
+                 aria-labelledby="validacoesHeader" 
+                 data-bs-parent="#integridadeAccordion">
+                <div class="accordion-body">
+                    {% if resultado.validacoes_negocio %}
+                        {% for validacao in resultado.validacoes_negocio %}
+                        <div class="problema-item">
+                            <h6 class="mb-1">{{ validacao.regra }}</h6>
+                            <p class="mb-1">{{ validacao.descricao }}</p>
+                            <small class="text-muted">
+                                <i class="fas fa-lightbulb"></i> Sugestão: {{ validacao.sugestao }}
+                            </small>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-success mb-0">
+                            <i class="fas fa-check"></i> Todas as regras de negócio estão sendo respeitadas.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance e Otimização -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="performanceHeader">
+                <button class="accordion-button {% if not resultado.alertas_performance %}collapsed{% endif %}" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#performanceCollapse"
+                        aria-expanded="{% if resultado.alertas_performance %}true{% else %}false{% endif %}" 
+                        aria-controls="performanceCollapse">
+                    <i class="status-icon {% if resultado.alertas_performance %}status-info fas fa-info-circle{% else %}status-ok fas fa-check-circle{% endif %}"></i>
+                    Performance e Otimização
+                    {% if resultado.alertas_performance %}
+                    <span class="badge bg-info badge-contador ms-2">{{ resultado.alertas_performance|length }}</span>
+                    {% endif %}
+                </button>
+            </h2>
+            <div id="performanceCollapse" 
+                 class="accordion-collapse collapse {% if resultado.alertas_performance %}show{% endif %}" 
+                 aria-labelledby="performanceHeader" 
+                 data-bs-parent="#integridadeAccordion">
+                <div class="accordion-body">
+                    {% if resultado.alertas_performance %}
+                        {% for alerta in resultado.alertas_performance %}
+                        <div class="problema-item">
+                            <h6 class="mb-1">{{ alerta.area }}</h6>
+                            <p class="mb-1">{{ alerta.descricao }}</p>
+                            <small class="text-muted">
+                                <i class="fas fa-rocket"></i> Otimização: {{ alerta.otimizacao }}
+                            </small>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-success mb-0">
+                            <i class="fas fa-check"></i> Sistema operando com performance otimizada.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Estatísticas do Sistema -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="estatisticasHeader">
+                <button class="accordion-button collapsed" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#estatisticasCollapse"
+                        aria-expanded="false" 
+                        aria-controls="estatisticasCollapse">
+                    <i class="status-icon status-info fas fa-chart-bar"></i>
+                    Estatísticas do Sistema
+                </button>
+            </h2>
+            <div id="estatisticasCollapse" 
+                 class="accordion-collapse collapse" 
+                 aria-labelledby="estatisticasHeader" 
+                 data-bs-parent="#integridadeAccordion">
+                <div class="accordion-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Dados Gerais</h6>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Horários Cadastrados:</span>
+                                    <strong>{{ resultado.estatisticas.horarios_total }}</strong>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Professores Ativos:</span>
+                                    <strong>{{ resultado.estatisticas.professores_ativos }}</strong>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Salas Utilizadas:</span>
+                                    <strong>{{ resultado.estatisticas.salas_utilizadas }}</strong>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Turmas Ativas:</span>
+                                    <strong>{{ resultado.estatisticas.turmas_ativas }}</strong>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Métricas de Qualidade</h6>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Taxa de Ocupação:</span>
+                                    <strong>{{ resultado.estatisticas.taxa_ocupacao }}%</strong>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Carga Média por Professor:</span>
+                                    <strong>{{ resultado.estatisticas.carga_media }}h</strong>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Eficiência de Alocação:</span>
+                                    <strong>{{ resultado.estatisticas.eficiencia_alocacao }}%</strong>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Última Verificação:</span>
+                                    <strong>{{ resultado.timestamp|date:"d/m/Y H:i" }}</strong>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ações Globais -->
+    <div class="text-center mt-4">
+        <div class="btn-group">
+            <button onclick="corrigirTodosProblemas()" class="btn btn-warning" 
+                    {% if not resultado.conflitos_horario and not resultado.inconsistencias %}disabled{% endif %}>
+                <i class="fas fa-tools"></i> Corrigir Todos os Problemas
+            </button>
+            <button onclick="exportarRelatorio()" class="btn btn-outline-primary">
+                <i class="fas fa-download"></i> Exportar Relatório
+            </button>
+            <a href="{% url 'core:dashboard_analitico' %}" class="btn btn-outline-info">
+                <i class="fas fa-chart-line"></i> Ver Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Rodapé -->
+    <div class="text-center text-muted mt-4">
+        <small>
+            Verificação de integridade executada em {{ resultado.timestamp|date:"d/m/Y H:i:s" }}
+            <br>
+            Tempo de execução: {{ resultado.tempo_execucao }}ms
+        </small>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function resolverConflito(conflito_id) {
+    if (confirm('Deseja resolver este conflito automaticamente?')) {
+        fetch('/sistema/resolver-conflito/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                'conflito_id': conflito_id
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Conflito resolvido com sucesso!');
+                location.reload();
+            } else {
+                alert('Erro ao resolver conflito: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('Erro ao resolver conflito.');
+        });
+    }
+}
+
+function corrigirInconsistencia(inconsistencia_id) {
+    if (confirm('Deseja corrigir esta inconsistência automaticamente?')) {
+        fetch('/sistema/corrigir-inconsistencia/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                'inconsistencia_id': inconsistencia_id
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Inconsistência corrigida com sucesso!');
+                location.reload();
+            } else {
+                alert('Erro ao corrigir inconsistência: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('Erro ao corrigir inconsistência.');
+        });
+    }
+}
+
+function corrigirTodosProblemas() {
+    if (confirm('Deseja corrigir automaticamente todos os problemas detectados? Esta ação não pode ser desfeita.')) {
+        const loadingButton = event.target;
+        loadingButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Corrigindo...';
+        loadingButton.disabled = true;
+        
+        fetch('/sistema/corrigir-todos/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Correção concluída! ${data.correcoes_aplicadas} problema(s) foram corrigidos.`);
+                location.reload();
+            } else {
+                alert('Erro na correção automática: ' + data.error);
+                loadingButton.innerHTML = '<i class="fas fa-tools"></i> Corrigir Todos os Problemas';
+                loadingButton.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('Erro na correção automática.');
+            loadingButton.innerHTML = '<i class="fas fa-tools"></i> Corrigir Todos os Problemas';
+            loadingButton.disabled = false;
+        });
+    }
+}
+
+function exportarRelatorio() {
+    window.open('?formato=pdf', '_blank');
+}
+
+// Auto-refresh da página a cada 5 minutos para manter dados atualizados
+setTimeout(function() {
+    if (confirm('Dados podem estar desatualizados. Deseja atualizar a verificação?')) {
+        location.reload();
+    }
+}, 300000); // 5 minutos
+</script>
+{% endblock %}
